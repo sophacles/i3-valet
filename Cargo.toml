@@ -1,0 +1,11 @@
+[package]
+name = "i3-valet"
+version = "0.1.0"
+authors = ["Erich Heine <sophacles@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4.6"
+env_logger = "0.6.1"
+#i3ipc = { version = "0.10.1", features = ["i3-next"] }
+i3ipc = { path = "/home/sophacles/src/i3ipc-rs", features = ["i3-next"] }
