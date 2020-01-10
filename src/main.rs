@@ -64,17 +64,6 @@ fn print_ws(conn: &mut I3Connection) {
 
 fn do_fix(conn: &mut I3Connection) {
     print_ws(conn);
-
-    //let node = conn.get_tree().expect("get_tree 1");
-    //let ws = node.get_current_workspace().expect("workspace 2");
-
-    //if ws.layout != reply::NodeLayout::SplitH {
-    //    let cmd = format!("[con_id={}] layout toggle splith", ws.id);
-    //    info!("{}", cmd);
-    //    let r = conn.run_command(&cmd);
-    //    debug!("GOT: {:?}", r);
-    //}
-
     info!("----------------------------------------------------------");
     info!("Cleaning!");
     if let Ok(n) = clean_current_workspace(conn) {
@@ -91,7 +80,6 @@ fn do_move(conn: &mut I3Connection, arg: String, honor_bar: bool) {
 
 fn dispatch(mut args: Vec<String>, conn: &mut I3Connection) {
     let cmd = args.remove(0);
-    println!("checking input: {}", cmd);
     match cmd.as_str() {
         "fix" => do_fix(conn),
         "loc" => do_move(conn, args[0].to_owned(), false),
@@ -106,7 +94,6 @@ fn main() {
     let print: bool = args.len() <= 1;
 
     env_logger::init();
-    debug!("FOO!!!");
 
     let mut conn = I3Connection::connect().expect("i3connect");
     if print {

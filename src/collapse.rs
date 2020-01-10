@@ -10,10 +10,21 @@ pub struct Collapse<'a> {
     pub candidate: &'a Node,
 }
 
+#[derive(Debug)]
 enum CollapseState<'a> {
-    Candidate(&'a Node),
-    Collapsing(&'a Node),
+    Candidate(Step<'a>),
+    Collapsing(Step<'a>),
     Fresh,
+}
+
+impl<'a> CollapseState<'a> {
+    fn pretty(&'a self) -> String {
+        match self {
+            CollapseState::Candidate(s) => format!("Candidate({})", s.n.id),
+            CollapseState::Collapsing(s) => format!("Collapsing({})", s.n.id),
+            CollapseState::Fresh => String::from("Fresh"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,19 +59,24 @@ fn collapse<'a>(candidate: &'a Node, target: &'a Node) -> Collapse<'a> {
 // The depth limit of 2 is because the current implementation does a simple window move to cause i3
 // to collapse the child up. Room for improvement here includes breadcrumbs or similar to have the
 // necesarry motions understood and performed all at once.
-pub fn find_candidates(root: &Node) -> Vec<Collapse> {
+pub fn find_candidate(root: &Node) -> Option<Collapse> {
     let mut candidate = CollapseState::Fresh;
     let mut prev = Step { d: 0, n: root };
-    let mut res = vec![];
 
     for cur in root.postorder() {
         let mc = Move::new(&cur, &prev);
-        debug!("{}:{} - {:?}", cur.d, cur.n.id, mc);
+        debug!(
+            "{}:{} - {:?} ** {}",
+            cur.d,
+            cur.n.id,
+            mc,
+            candidate.pretty()
+        );
         match candidate {
             CollapseState::Collapsing(c) => {
-                if (mc == Move::Up || mc == Move::Down || mc == Move::Sibling) && prev.d > 2 {
-                    res.push(collapse(c, prev.n));
-                    candidate = CollapseState::Fresh;
+                if (mc == Move::Up || mc == Move::Down || mc == Move::Sibling) && c.d > 2 {
+                    debug!("Pushing {}", c.n.id);
+                    return Some(collapse(c.n, prev.n));
                 }
             }
             CollapseState::Candidate(c) => {
@@ -72,50 +88,31 @@ pub fn find_candidates(root: &Node) -> Vec<Collapse> {
         };
 
         if mc == Move::Down && cur.d > 2 {
-            candidate = CollapseState::Candidate(cur.n);
+            candidate = CollapseState::Candidate(cur.clone());
         } else if mc == Move::Sibling {
             candidate = CollapseState::Fresh;
         }
 
         prev = cur;
     }
-    res
+    debug!("No candidate");
+    None
 }
 
 pub fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
+    debug!("In collapse_workspace");
     let mut ops: usize = 0;
-    for x in find_candidates(ws) {
+    //for x in find_candidates(ws) {
+    if let Some(x) = find_candidate(ws) {
         debug!("{} <== {}", x.target.id, x.candidate.id);
         let cmd = format!("[con_id={}] move up", x.candidate.id);
-        info!("RUN:{}", cmd);
+        debug!("RUN:{}", cmd);
         let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
         debug!("GOT: {:?}", r);
         ops += 1;
     }
+    debug!("collapse done");
     Ok(ops)
-}
-
-pub fn shorten_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
-    let mut m: Option<&Node> = None;
-    for cur in ws.preorder() {
-        if cur.n.nodes.len() != 1 {
-            if cur.d > 1 {
-                m = Some(cur.n);
-            }
-            break;
-        }
-    }
-
-    if let Some(n) = m {
-        let cmd = format!("[con_id={}] move left", n.id);
-        info!("RUN:{}", cmd);
-        let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-        debug!("GOT: {:?}", r);
-
-        Ok(1)
-    } else {
-        Ok(0)
-    }
 }
 
 pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<usize, String> {
@@ -125,14 +122,10 @@ pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<usize, String>
         let ws = node
             .get_current_workspace()
             .expect("No current workspace!?");
-        let mut ops = collapse_workspace(ws, conn)?;
-        ops += shorten_workspace(ws, conn)?;
-        //let ops = shorten_workspace(ws, conn)?;
+        let ops = collapse_workspace(ws, conn)?;
         collapse_ops += ops;
         if ops == 0 {
-            break;
+            return Ok(collapse_ops);
         }
     }
-
-    Ok(collapse_ops)
 }

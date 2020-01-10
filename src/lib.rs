@@ -30,6 +30,7 @@ pub trait NodeSearch {
     }
 
     fn pretty_print(&self, fmt_node: impl Fn(&Node) -> String) {
+        println!("Tree:");
         for Step { d, n } in self.preorder() {
             println!("{}{}: {}", "  ".repeat(d), d, fmt_node(n));
         }
@@ -76,6 +77,7 @@ pub enum Order {
     PostOrder,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Step<'a> {
     pub d: usize,
     pub n: &'a Node,
@@ -124,7 +126,7 @@ impl<'a> Iterator for Traversal<'a> {
     }
 }
 
-fn preorder(n: &Node, d: usize) -> Vec<Step> {
+fn preorder<'a>(n: &'a Node, d: usize) -> Vec<Step<'a>> {
     let res = vec![Step { d, n }];
     if n.has_children() {
         n.nodes.iter().fold(res, |mut res, c| {
@@ -136,7 +138,7 @@ fn preorder(n: &Node, d: usize) -> Vec<Step> {
     }
 }
 
-fn postorder(n: &Node, d: usize) -> Vec<Step> {
+fn postorder<'a>(n: &'a Node, d: usize) -> Vec<Step<'a>> {
     if n.has_children() {
         let mut res = n.nodes.iter().fold(vec![], |mut acc, c| {
             acc.extend(postorder(c, d + 1));
