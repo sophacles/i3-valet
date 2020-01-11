@@ -10,12 +10,11 @@ use std::env;
 //use i3ipc::event::inner::{Binding, WindowChange};
 use i3ipc::event::Event;
 //use i3ipc::reply;
-use i3ipc::reply::Node;
 use i3ipc::{I3Connection, I3EventListener, Subscription};
 
 use i3_valet::collapse::clean_current_workspace;
 use i3_valet::floats::teleport_float;
-use i3_valet::NodeSearch;
+use i3_valet::info;
 
 fn listenery_shit(command_conn: &mut I3Connection) {
     let mut listener = I3EventListener::connect().unwrap();
@@ -45,31 +44,11 @@ fn listenery_shit(command_conn: &mut I3Connection) {
     }
 }
 
-fn node_str(node: &Node) -> String {
-    format!(
-        "Node: {:.1}({}) \"{:.10}\" ({:?}) -- {:?}",
-        node.focused,
-        node.id,
-        node.name.as_ref().unwrap_or(&String::from("None")),
-        node.layout,
-        node.marks,
-    )
-}
-
-fn print_ws(conn: &mut I3Connection) {
-    let node = conn.get_tree().expect("get_tree 1");
-    let ws = node.get_current_workspace().expect("workspace 2");
-    ws.pretty_print(node_str);
-}
-
-fn print_disp(conn: &mut I3Connection) {
-    let node = conn.get_tree().expect("get_tree 1");
-    let ws = node.get_current_output().expect("workspace 2");
-    ws.pretty_print(node_str);
-}
-
 fn do_fix(conn: &mut I3Connection) {
-    print_ws(conn);
+    let mut fmt = info::StepFormatter::new();
+    let fmt = fmt.set("id").set("depth").set("name").set("rect");
+
+    info::print_ws(conn, fmt);
     info!("----------------------------------------------------------");
     info!("Cleaning!");
     if let Ok(n) = clean_current_workspace(conn) {
@@ -77,7 +56,7 @@ fn do_fix(conn: &mut I3Connection) {
     }
     info!("----------------------------------------------------------");
 
-    print_ws(conn);
+    info::print_ws(conn, fmt);
 }
 
 fn do_move(conn: &mut I3Connection, arg: String, honor_bar: bool) {
@@ -103,7 +82,14 @@ fn main() {
 
     let mut conn = I3Connection::connect().expect("i3connect");
     if print {
-        print_disp(&mut conn);
+        let mut fmt = info::StepFormatter::new();
+        let fmt = fmt
+            .set("id")
+            .set("name")
+            .set("depth")
+            .set("name")
+            .set("rect");
+        info::print_disp(&mut conn, fmt);
         return;
     }
     dispatch(args[1..].to_vec(), &mut conn);

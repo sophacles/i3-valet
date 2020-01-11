@@ -12,6 +12,7 @@ use i3ipc::reply::{Floating, Node};
 
 pub mod collapse;
 pub mod floats;
+pub mod info;
 
 pub trait NodeSearch {
     fn is_floating(&self) -> bool;
@@ -30,13 +31,6 @@ pub trait NodeSearch {
 
     fn get_current_window(&self) -> Option<&Node> {
         self.search_focus_path(|n| n.focused && n.is_floating())
-    }
-
-    fn pretty_print(&self, fmt_node: impl Fn(&Node) -> String) {
-        println!("Tree:");
-        for Step { d, n } in self.preorder() {
-            println!("{}{}: {}", "  ".repeat(d), d, fmt_node(n));
-        }
     }
 }
 
