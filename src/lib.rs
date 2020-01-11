@@ -13,12 +13,28 @@ pub mod collapse;
 pub mod floats;
 pub mod info;
 
-pub trait NodeSearch {
+pub trait NodeExt {
     fn is_floating(&self) -> bool;
-    fn search_focus_path<P: Fn(&Node) -> bool>(&self, p: P) -> Option<&Node>;
+    fn has_children(&self) -> bool;
+}
+
+impl NodeExt for Node {
+    fn is_floating(&self) -> bool {
+        match self.floating {
+            Floating::AutoOff | Floating::UserOff => false,
+            Floating::AutoOn | Floating::UserOn => true,
+        }
+    }
+
+    fn has_children(&self) -> bool {
+        !self.nodes.is_empty()
+    }
+}
+
+pub trait NodeSearch {
     fn postorder(&self) -> Traversal;
     fn preorder(&self) -> Traversal;
-    fn has_children(&self) -> bool;
+    fn search_focus_path<P: Fn(&Node) -> bool>(&self, p: P) -> Option<&Node>;
 
     fn get_current_workspace(&self) -> Option<&Node> {
         self.search_focus_path(|n| n.nodetype == reply::NodeType::Workspace)
@@ -34,13 +50,6 @@ pub trait NodeSearch {
 }
 
 impl NodeSearch for Node {
-    fn is_floating(&self) -> bool {
-        match self.floating {
-            Floating::AutoOff | Floating::UserOff => false,
-            Floating::AutoOn | Floating::UserOn => true,
-        }
-    }
-
     fn search_focus_path<P: Fn(&Node) -> bool>(&self, p: P) -> Option<&Node> {
         let mut node = self;
         loop {
@@ -53,10 +62,6 @@ impl NodeSearch for Node {
                 .chain(node.floating_nodes.iter())
                 .find(|f| f.id == node.focus[0])?;
         }
-    }
-
-    fn has_children(&self) -> bool {
-        !self.nodes.is_empty()
     }
 
     fn postorder(&self) -> Traversal {

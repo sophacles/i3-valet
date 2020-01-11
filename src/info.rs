@@ -1,7 +1,7 @@
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::{NodeSearch, Step};
+use crate::{NodeExt, NodeSearch, Step};
 
 pub struct StepFormatter {
     // if depth is on, indent by depth spaces
