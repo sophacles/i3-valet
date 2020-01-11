@@ -62,6 +62,12 @@ fn print_ws(conn: &mut I3Connection) {
     ws.pretty_print(node_str);
 }
 
+fn print_disp(conn: &mut I3Connection) {
+    let node = conn.get_tree().expect("get_tree 1");
+    let ws = node.get_current_output().expect("workspace 2");
+    ws.pretty_print(node_str);
+}
+
 fn do_fix(conn: &mut I3Connection) {
     print_ws(conn);
     info!("----------------------------------------------------------");
@@ -97,7 +103,7 @@ fn main() {
 
     let mut conn = I3Connection::connect().expect("i3connect");
     if print {
-        print_ws(&mut conn);
+        print_disp(&mut conn);
         return;
     }
     dispatch(args[1..].to_vec(), &mut conn);

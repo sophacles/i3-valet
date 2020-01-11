@@ -72,20 +72,12 @@ fn calc_offset(output: &Node) -> i32 {
     return 0;
 }
 
-pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) {
+pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Option<i64> {
     println!("Teleport floating to: {:?}", to);
 
-    let tree = conn.get_tree().expect("No tree result!?");
-    let output = tree.get_current_output();
-    let current_window = output.search_focus_path(|n| {
-        //println!("Window is floating: {:?}", n.is_floating());
-        n.focused && n.is_floating()
-    });
-
-    if current_window.is_none() {
-        return;
-    }
-    let current_window = current_window.expect("no current window!");
+    let tree = conn.get_tree().expect("Cannot get tree!");
+    let output = tree.get_current_output()?;
+    let current_window = output.get_current_window()?;
 
     let offset: i32;
     if honor_bar {
@@ -106,4 +98,5 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) {
     println!("RUN:{}", cmd);
     let r = conn.run_command(&cmd).map_err(|e| format!("{}", e));
     println!("GOT: {:?}", r);
+    Some(current_window.id)
 }

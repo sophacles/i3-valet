@@ -24,9 +24,12 @@ pub trait NodeSearch {
         self.search_focus_path(|n| n.nodetype == reply::NodeType::Workspace)
     }
 
-    fn get_current_output(&self) -> &Node {
+    fn get_current_output(&self) -> Option<&Node> {
         self.search_focus_path(|n| n.nodetype == reply::NodeType::Output)
-            .expect("No current output?!")
+    }
+
+    fn get_current_window(&self) -> Option<&Node> {
+        self.search_focus_path(|n| n.focused && n.is_floating())
     }
 
     fn pretty_print(&self, fmt_node: impl Fn(&Node) -> String) {
