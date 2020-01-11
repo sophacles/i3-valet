@@ -46,7 +46,12 @@ fn listenery_shit(command_conn: &mut I3Connection) {
 
 fn do_fix(conn: &mut I3Connection) {
     let mut fmt = info::StepFormatter::new();
-    let fmt = fmt.set("id").set("depth").set("name").set("rect");
+    let fmt = fmt
+        .set("id")
+        .set("depth")
+        .set("name")
+        .set("layout")
+        .set("marks");
 
     info::print_ws(conn, fmt);
     info!("----------------------------------------------------------");
@@ -67,8 +72,11 @@ fn dispatch(mut args: Vec<String>, conn: &mut I3Connection) {
     let cmd = args.remove(0);
     match cmd.as_str() {
         "fix" => do_fix(conn),
-        "loc" => do_move(conn, args[0].to_owned(), false),
-        "loc_bar" => do_move(conn, args[0].to_owned(), true),
+        "loc" => match args[0].as_str() {
+            "abs" => do_move(conn, args[1].to_owned(), false),
+            "rel" => do_move(conn, args[1].to_owned(), true),
+            _ => do_move(conn, args[0].to_owned(), true),
+        },
         "EXP" => listenery_shit(conn),
         _ => warn!("BAD INPUT: {} {:?}", cmd, args),
     }
@@ -89,7 +97,7 @@ fn main() {
             .set("depth")
             .set("name")
             .set("rect");
-        info::print_disp(&mut conn, fmt);
+        info::print_ws(&mut conn, fmt);
         return;
     }
     dispatch(args[1..].to_vec(), &mut conn);

@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
-use i3ipc::reply::{Node, WindowProperty};
+use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::{NodeSearch, Step};
+use crate::NodeSearch;
 
 #[derive(Debug)]
 pub enum Loc {
@@ -56,43 +56,23 @@ impl Mon {
     }
 }
 
-fn calc_offset(output: &Node) -> i32 {
-    for Step { d: _, n } in output.preorder() {
-        match &n.window_properties {
-            None => continue,
-            Some(map) => {
-                if let Some(s) = map.get(&WindowProperty::Instance) {
-                    if s == "i3bar" {
-                        return n.rect.3;
-                    }
-                }
-            }
-        }
-    }
-    return 0;
-}
-
 pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Option<i64> {
     println!("Teleport floating to: {:?}", to);
 
-    let tree = conn.get_tree().expect("Cannot get tree!");
-    let output = tree.get_current_output()?;
-    let current_window = output.get_current_window()?;
+    let tree = conn.get_tree().ok()?;
+    let target: &Node = match honor_bar {
+        //true => tree.search_focus_path(|n| match &n.name {
+        //    Some(name) => name == "content",
+        //    _ => false,
+        //})?,
+        true => tree.search_focus_path(|n| n.name.as_ref().map_or(false, |v| v == "content"))?,
+        false => tree.get_current_output()?,
+    };
 
-    let offset: i32;
-    if honor_bar {
-        offset = calc_offset(output)
-    } else {
-        offset = 0;
-    }
+    let current_window = target.get_current_window()?;
 
-    let (mut x, y, w, h) = current_window.rect;
-    x += offset;
-
-    let r = (x, y, w, h);
-
-    let cur_display = Mon::from_node(output);
-    let (x, y) = cur_display.move_to(r, to);
+    let cur_display = Mon::from_node(target);
+    let (x, y) = cur_display.move_to(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
     println!("RUN:{}", cmd);

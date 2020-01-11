@@ -1,4 +1,3 @@
-extern crate env_logger;
 extern crate i3ipc;
 
 #[macro_use]
