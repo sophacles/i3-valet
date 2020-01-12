@@ -3,7 +3,6 @@ extern crate i3ipc;
 #[macro_use]
 extern crate log;
 
-use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::iter::Iterator;
 
 use i3ipc::reply;
@@ -77,19 +76,6 @@ impl NodeSearch for Node {
 pub struct Step<'a> {
     pub d: usize,
     pub n: &'a Node,
-}
-
-impl<'a> PartialEq for Step<'a> {
-    fn eq(&self, other: &Step<'a>) -> bool {
-        self.d == other.d
-    }
-}
-
-impl<'a> PartialOrd for Step<'a> {
-    fn partial_cmp(&self, other: &Step<'a>) -> Option<Ordering> {
-        let res = self.d.partial_cmp(&other.d);
-        res
-    }
 }
 
 pub struct PostOrder<'a> {

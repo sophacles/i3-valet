@@ -36,11 +36,11 @@ enum Move {
 
 impl Move {
     fn new(cur: &Step, last: &Step) -> Move {
-        if cur > last {
+        if cur.d > last.d {
             Move::Down
-        } else if cur == last {
+        } else if cur.d == last.d {
             Move::Sibling
-        } else if cur < last {
+        } else if cur.d < last.d {
             Move::Up
         } else {
             panic!("WTF!");
