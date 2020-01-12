@@ -3,7 +3,7 @@ extern crate log;
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::{NodeSearch, Step};
+use crate::{info, NodeSearch, Step};
 
 pub struct Collapse<'a> {
     pub target: &'a Node,
@@ -48,10 +48,6 @@ impl Move {
     }
 }
 
-fn collapse<'a>(candidate: &'a Node, target: &'a Node) -> Collapse<'a> {
-    Collapse { candidate, target }
-}
-
 // postorder traversal lets us look for changes in depth easily.
 // Any window that has no siblings is a candidate to merge up.
 // The target node is the first parent that has multiple children, where we wish to reparent the
@@ -59,7 +55,7 @@ fn collapse<'a>(candidate: &'a Node, target: &'a Node) -> Collapse<'a> {
 // The depth limit of 2 is because the current implementation does a simple window move to cause i3
 // to collapse the child up. Room for improvement here includes breadcrumbs or similar to have the
 // necesarry motions understood and performed all at once.
-pub fn find_candidate(root: &Node) -> Option<Collapse> {
+fn find_candidate(root: &Node) -> Option<&Node> {
     let mut candidate = CollapseState::Fresh;
     let mut prev = Step { d: 0, n: root };
 
@@ -74,9 +70,10 @@ pub fn find_candidate(root: &Node) -> Option<Collapse> {
         );
         match candidate {
             CollapseState::Collapsing(c) => {
-                if (mc == Move::Up || mc == Move::Down || mc == Move::Sibling) && c.d > 2 {
+                if c.d > 2 {
                     debug!("Pushing {}", c.n.id);
-                    return Some(collapse(c.n, prev.n));
+                    debug!("collapse: {} <== {}", c.n.id, prev.n.id);
+                    return Some(c.n);
                 }
             }
             CollapseState::Candidate(c) => {
@@ -99,13 +96,12 @@ pub fn find_candidate(root: &Node) -> Option<Collapse> {
     None
 }
 
-pub fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
+fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
     debug!("In collapse_workspace");
     let mut ops: usize = 0;
     //for x in find_candidates(ws) {
     if let Some(x) = find_candidate(ws) {
-        debug!("{} <== {}", x.target.id, x.candidate.id);
-        let cmd = format!("[con_id={}] move up", x.candidate.id);
+        let cmd = format!("[con_id={}] move left", x.id);
         debug!("RUN:{}", cmd);
         let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
         debug!("GOT: {:?}", r);
@@ -118,6 +114,7 @@ pub fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, S
 pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<usize, String> {
     let mut collapse_ops = 0;
     loop {
+        info::print_ws(conn, &info::STD);
         let node = conn.get_tree().expect("No tree result!?");
         let ws = node
             .get_current_workspace()
