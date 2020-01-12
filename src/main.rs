@@ -90,14 +90,8 @@ fn main() {
 
     let mut conn = I3Connection::connect().expect("i3connect");
     if print {
-        let mut fmt = info::StepFormatter::new();
-        let fmt = fmt
-            .set("id")
-            .set("name")
-            .set("depth")
-            .set("name")
-            .set("rect");
-        info::print_ws(&mut conn, fmt);
+        info::print_ws(&mut conn, &info::STD);
+
         return;
     }
     dispatch(args[1..].to_vec(), &mut conn);

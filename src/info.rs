@@ -3,6 +3,19 @@ use i3ipc::I3Connection;
 
 use crate::{NodeExt, NodeSearch, Step};
 
+lazy_static! {
+    pub static ref STD: StepFormatter = {
+        let mut fmt = StepFormatter::new();
+        fmt.set("id")
+            .set("depth")
+            .set("name")
+            .set("name")
+            .set("layout")
+            .set("marks");
+        fmt
+    };
+}
+
 pub struct StepFormatter {
     // if depth is on, indent by depth spaces
     indent: bool,

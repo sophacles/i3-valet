@@ -3,6 +3,9 @@ extern crate i3ipc;
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate lazy_static;
+
 use std::iter::Iterator;
 
 use i3ipc::reply;
