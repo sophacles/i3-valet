@@ -3,7 +3,8 @@ extern crate log;
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::{info, NodeSearch, Step};
+use crate::ext::{NodeSearch, Step};
+use crate::info;
 
 pub struct Collapse<'a> {
     pub target: &'a Node,

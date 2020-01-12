@@ -1,7 +1,7 @@
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::{NodeExt, NodeSearch, Step};
+use crate::ext::{NodeExt, NodeSearch, Step};
 
 lazy_static! {
     pub static ref STD: StepFormatter = {
@@ -9,6 +9,21 @@ lazy_static! {
         fmt.set("id")
             .set("depth")
             .set("name")
+            .set("layout")
+            .set("marks");
+        fmt
+    };
+    pub static ref RECT: StepFormatter = {
+        let mut fmt = StepFormatter::new();
+        fmt.set("id").set("depth").set("name").set("rect");
+        fmt
+    };
+    pub static ref WINDOW: StepFormatter = {
+        let mut fmt = StepFormatter::new();
+        fmt.show_indent(false);
+        fmt.set("id")
+            .set("floating")
+            .set("depth")
             .set("name")
             .set("layout")
             .set("marks");
@@ -129,6 +144,12 @@ pub fn pretty_print(n: &Node, fmt: &StepFormatter) {
     for s in n.preorder() {
         println!("{}", fmt.format(&s));
     }
+}
+
+pub fn print_window(conn: &mut I3Connection, fmt: &StepFormatter) {
+    let node = conn.get_tree().expect("get_tree 1");
+    let ws = node.get_current_window().expect("workspace 2");
+    pretty_print(ws, fmt);
 }
 
 pub fn print_ws(conn: &mut I3Connection, fmt: &StepFormatter) {

@@ -77,6 +77,12 @@ fn dispatch(mut args: Vec<String>, conn: &mut I3Connection) {
             "rel" => do_move(conn, args[1].to_owned(), true),
             _ => do_move(conn, args[0].to_owned(), true),
         },
+        "print" => match args[0].as_str() {
+            "tree" => info::print_ws(conn, &info::STD),
+            "rects" => info::print_disp(conn, &info::RECT),
+            "window" => info::print_window(conn, &info::WINDOW),
+            _ => warn!("BAD INPUT: {} {:?}", cmd, args),
+        },
         "EXP" => listenery_shit(conn),
         _ => warn!("BAD INPUT: {} {:?}", cmd, args),
     }
@@ -84,15 +90,13 @@ fn dispatch(mut args: Vec<String>, conn: &mut I3Connection) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let print: bool = args.len() <= 1;
+    let args = match args.len() <= 1 {
+        true => vec!["print".to_string(), "tree".to_string()],
+        false => args[1..].to_vec(),
+    };
 
     env_logger::init();
 
     let mut conn = I3Connection::connect().expect("i3connect");
-    if print {
-        info::print_ws(&mut conn, &info::STD);
-
-        return;
-    }
-    dispatch(args[1..].to_vec(), &mut conn);
+    dispatch(args, &mut conn);
 }

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
-use crate::NodeSearch;
+use crate::ext::NodeSearch;
 
 #[derive(Debug)]
 pub enum Loc {
@@ -33,13 +33,21 @@ impl FromStr for Loc {
 //            x    y    w    h
 type Rect = (i32, i32, i32, i32);
 
-struct Mon {
+struct DisplayArea {
     bounds: Rect,
 }
 
-impl Mon {
+impl DisplayArea {
     pub fn from_node(node: &Node) -> Self {
-        Mon { bounds: node.rect }
+        DisplayArea { bounds: node.rect }
+    }
+
+    pub fn display(tree: &Node) -> Option<Self> {
+        Some(DisplayArea::from_node(tree.get_content_area()?))
+    }
+
+    pub fn content(tree: &Node) -> Option<Self> {
+        Some(DisplayArea::from_node(tree.get_current_output()?))
     }
 
     pub fn move_to(&self, container: Rect, to: Loc) -> (i32, i32) {
@@ -60,15 +68,14 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Opti
     println!("Teleport floating to: {:?}", to);
 
     let tree = conn.get_tree().ok()?;
-    let target: &Node = match honor_bar {
-        true => tree.get_content_area()?,
-        false => tree.get_current_output()?,
+    let current_window = tree.get_current_window()?;
+
+    let current_display = match honor_bar {
+        true => DisplayArea::content(&tree)?,
+        false => DisplayArea::display(&tree)?,
     };
 
-    let current_window = target.get_current_window()?;
-
-    let cur_display = Mon::from_node(target);
-    let (x, y) = cur_display.move_to(current_window.rect, to);
+    let (x, y) = current_display.move_to(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
     let r = conn.run_command(&cmd).map_err(|e| format!("{}", e));
