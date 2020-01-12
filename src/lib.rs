@@ -46,6 +46,10 @@ pub trait NodeSearch {
         self.search_focus_path(|n| n.nodetype == reply::NodeType::Output)
     }
 
+    fn get_content_area(&self) -> Option<&Node> {
+        self.search_focus_path(|n| n.name.as_ref().map_or(false, |v| v == "content"))
+    }
+
     fn get_current_window(&self) -> Option<&Node> {
         self.search_focus_path(|n| n.focused && n.is_floating())
     }

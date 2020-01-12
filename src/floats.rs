@@ -61,11 +61,7 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Opti
 
     let tree = conn.get_tree().ok()?;
     let target: &Node = match honor_bar {
-        //true => tree.search_focus_path(|n| match &n.name {
-        //    Some(name) => name == "content",
-        //    _ => false,
-        //})?,
-        true => tree.search_focus_path(|n| n.name.as_ref().map_or(false, |v| v == "content"))?,
+        true => tree.get_content_area()?,
         false => tree.get_current_output()?,
     };
 
@@ -75,8 +71,7 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Opti
     let (x, y) = cur_display.move_to(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
-    println!("RUN:{}", cmd);
     let r = conn.run_command(&cmd).map_err(|e| format!("{}", e));
-    println!("GOT: {:?}", r);
+    debug!("RUN:{}\nGOT: {:?}", cmd, r);
     Some(current_window.id)
 }
