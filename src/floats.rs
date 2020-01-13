@@ -13,6 +13,8 @@ pub enum Loc {
     SE,
     Top,
     Bottom,
+    Left,
+    Right,
 }
 
 impl FromStr for Loc {
@@ -26,6 +28,8 @@ impl FromStr for Loc {
             "se" => Ok(Loc::SE),
             "top" => Ok(Loc::Top),
             "bot" => Ok(Loc::Bottom),
+            "left" => Ok(Loc::Left),
+            "right" => Ok(Loc::Right),
             _ => Err(format!("Bad input: {}", s)),
         }
     }
@@ -50,9 +54,9 @@ impl DisplayArea {
         Some(DisplayArea::from_node(tree.get_current_output()?))
     }
 
-    pub fn move_to(&self, container: Rect, to: Loc) -> (i32, i32) {
+    pub fn position_window(&self, window: Rect, to: Loc) -> (i32, i32) {
         let (x, y, w, h) = self.bounds;
-        let (.., ww, wh) = container;
+        let (.., ww, wh) = window;
         match to {
             Loc::NW => (x, y),
             Loc::NE => ((x + w - ww), y),
@@ -60,6 +64,8 @@ impl DisplayArea {
             Loc::SE => ((x + w - ww), (y + h - wh)),
             Loc::Top => ((x + w / 2 - ww / 2), y),
             Loc::Bottom => ((x + w / 2 - ww / 2), (y + h - wh)),
+            Loc::Right => ((x + w - ww), (y + h / 2 - wh / 2)),
+            Loc::Left => (x, (y + h / 2 - wh / 2)),
         }
     }
 }
@@ -75,7 +81,7 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, honor_bar: bool) -> Opti
         false => DisplayArea::display(&tree)?,
     };
 
-    let (x, y) = current_display.move_to(current_window.rect, to);
+    let (x, y) = current_display.position_window(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
     let r = conn.run_command(&cmd).map_err(|e| format!("{}", e));
