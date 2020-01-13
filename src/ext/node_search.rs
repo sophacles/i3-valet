@@ -74,13 +74,14 @@ impl<'a> Iterator for PostOrder<'a> {
             Some(n) => n,
             None => return Some(s),
         };
-
         let mut d = s.d + 1;
+
         // push ourself on first
         self.stack.push((i + 1, s));
+
         // push the ith child, since thats the branch to go down
         while n.has_children() {
-            // one here, not 0 since we're taking the 0 path on the ride down
+            // 1 here, not 0 since we're taking the 0 path on the ride down
             self.stack.push((1, Step { d, n }));
             n = &n.nodes[0];
             d += 1

@@ -45,15 +45,7 @@ fn listenery_shit(command_conn: &mut I3Connection) {
 }
 
 fn do_fix(conn: &mut I3Connection) {
-    let mut fmt = info::StepFormatter::new();
-    let fmt = fmt
-        .set("id")
-        .set("depth")
-        .set("name")
-        .set("layout")
-        .set("marks");
-
-    info::print_ws(conn, fmt);
+    info::print_ws(conn, &info::STD);
     info!("----------------------------------------------------------");
     info!("Cleaning!");
     if let Ok(n) = clean_current_workspace(conn) {
@@ -61,7 +53,7 @@ fn do_fix(conn: &mut I3Connection) {
     }
     info!("----------------------------------------------------------");
 
-    info::print_ws(conn, fmt);
+    info::print_ws(conn, &info::STD);
 }
 
 fn do_move(conn: &mut I3Connection, arg: String, honor_bar: bool) {
