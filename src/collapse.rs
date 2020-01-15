@@ -1,4 +1,5 @@
 extern crate log;
+use std::cmp::{Ord, Ordering};
 
 use i3ipc::reply::Node;
 use i3ipc::I3Connection;
@@ -36,14 +37,10 @@ enum Move {
 
 impl Move {
     fn new(cur: &Step, last: &Step) -> Move {
-        if cur.d > last.d {
-            Move::Down
-        } else if cur.d == last.d {
-            Move::Sibling
-        } else if cur.d < last.d {
-            Move::Up
-        } else {
-            panic!("WTF!");
+        match cur.d.cmp(&last.d) {
+            Ordering::Greater => Move::Down,
+            Ordering::Equal => Move::Sibling,
+            Ordering::Less => Move::Up,
         }
     }
 }
@@ -94,14 +91,6 @@ fn find_candidate(root: &Node) -> Option<&Node> {
     }
     debug!("No candidate");
     None
-}
-
-fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
-    if let Some(x) = find_candidate(ws) {
-        let cmd = format!("[con_id={}] move left", x.id);
-        conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    }
-    Ok(0)
 }
 
 pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<(), String> {

@@ -106,7 +106,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 "tree" => info::print_ws(conn, &info::STD),
                 "rects" => info::print_disp(conn, &info::RECT),
                 "window" => info::print_window(conn, &info::WINDOW),
-                _ => Ok(unreachable!("stupid possible_values failed")),
+                _ => unreachable!("stupid possible_values failed"),
             }
         }
         Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
@@ -115,6 +115,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
     }
 }
 
+#[allow(unused_must_use)]
 fn main() {
     env_logger::init();
 
@@ -126,6 +127,7 @@ fn main() {
         Some("listen") => listener(&mut conn),
         _ => dispatch(parsed, &mut conn),
     } {
+        // TODO: fix the cheat (unused_must_use above)
         io::stderr().write_all(
             format!("Error running command: {}", res)
                 .as_str()
