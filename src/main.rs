@@ -1,15 +1,13 @@
+extern crate clap;
 extern crate env_logger;
 extern crate i3ipc;
 
 #[macro_use]
 extern crate log;
 
-use std::env;
-//use std::thread;
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-//use i3ipc::event::inner::{Binding, WindowChange};
 use i3ipc::event::Event;
-//use i3ipc::reply;
 use i3ipc::{I3Connection, I3EventListener, Subscription};
 
 use i3_valet::collapse::clean_current_workspace;
@@ -36,7 +34,14 @@ fn listenery_shit(command_conn: &mut I3Connection) {
                     .map(|s| String::from(s))
                     .collect();
                 if args.remove(0) == "nop" {
-                    dispatch(args, command_conn);
+                    let cl = args.join(" ");
+                    match make_args()
+                        .setting(AppSettings::NoBinaryName)
+                        .get_matches_from_safe(args)
+                    {
+                        Ok(m) => dispatch(m, command_conn),
+                        Err(e) => warn!("Cannot parse: {}\n (error was: {:?})", cl, e),
+                    }
                 }
             }
             _ => unreachable!("Can't happen, but here we are"),
@@ -44,51 +49,77 @@ fn listenery_shit(command_conn: &mut I3Connection) {
     }
 }
 
-fn do_fix(conn: &mut I3Connection) {
-    info::print_ws(conn, &info::STD);
-    info!("----------------------------------------------------------");
-    info!("Cleaning!");
-    if let Ok(n) = clean_current_workspace(conn) {
-        info!("DID {} things!", n);
-    }
-    info!("----------------------------------------------------------");
-
-    info::print_ws(conn, &info::STD);
+fn make_args<'a, 'b>() -> App<'a, 'b> {
+    App::new("i3-valet")
+        .version("0.1")
+        .author("sophacles@gmail.com")
+        .about("tools for i3 wm")
+        .subcommand(SubCommand::with_name("fix"))
+        .subcommand(
+            SubCommand::with_name("loc")
+                .arg(
+                    Arg::with_name("how")
+                        .index(1)
+                        .required(true)
+                        .possible_values(&["abs", "rel"]),
+                )
+                .arg(
+                    Arg::with_name("where")
+                        .index(2)
+                        .required(true)
+                        .possible_values(&["nw", "ne", "sw", "se", "bot", "top", "left", "right"]),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("print").arg(
+                Arg::with_name("target")
+                    .index(1)
+                    .required(true)
+                    .possible_values(&["tree", "rects", "window"]),
+            ),
+        )
+        .subcommand(SubCommand::with_name("listen"))
 }
 
-fn do_move(conn: &mut I3Connection, arg: String, honor_bar: bool) {
-    teleport_float(conn, arg.parse().unwrap(), honor_bar);
-}
-
-fn dispatch(mut args: Vec<String>, conn: &mut I3Connection) {
-    let cmd = args.remove(0);
-    match cmd.as_str() {
-        "fix" => do_fix(conn),
-        "loc" => match args[0].as_str() {
-            "abs" => do_move(conn, args[1].to_owned(), false),
-            "rel" => do_move(conn, args[1].to_owned(), true),
-            _ => do_move(conn, args[0].to_owned(), true),
-        },
-        "print" => match args[0].as_str() {
-            "tree" => info::print_ws(conn, &info::STD),
-            "rects" => info::print_disp(conn, &info::RECT),
-            "window" => info::print_window(conn, &info::WINDOW),
-            _ => warn!("BAD INPUT: {} {:?}", cmd, args),
-        },
-        "EXP" => listenery_shit(conn),
-        _ => warn!("BAD INPUT: {} {:?}", cmd, args),
+// TODO: make this happy with all the options and stuff
+fn dispatch(m: ArgMatches, conn: &mut I3Connection) {
+    match m.subcommand_name() {
+        Some("fix") => {
+            clean_current_workspace(conn);
+        }
+        Some("loc") => {
+            let m = m.subcommand.unwrap().matches;
+            teleport_float(
+                conn,
+                m.value_of("where").unwrap().to_string().parse().unwrap(),
+                m.value_of("how").unwrap().to_string().parse().unwrap(),
+            );
+        }
+        Some("print") => {
+            let m = m.subcommand.unwrap().matches;
+            match m.value_of("target").unwrap() {
+                "tree" => info::print_ws(conn, &info::STD),
+                "rects" => info::print_disp(conn, &info::RECT),
+                "window" => info::print_window(conn, &info::WINDOW),
+                _ => unreachable!("stupid possible_values failed"),
+            }
+        }
+        Some("listen") => info!("Cannot dispatch listen: cli command only."),
+        None => info::print_ws(conn, &info::STD),
+        Some(f) => info!("Invalid command: {}", f),
     }
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let args = match args.len() <= 1 {
-        true => vec!["print".to_string(), "tree".to_string()],
-        false => args[1..].to_vec(),
-    };
-
     env_logger::init();
 
     let mut conn = I3Connection::connect().expect("i3connect");
-    dispatch(args, &mut conn);
+    //dispatch_old(args, &mut conn);
+
+    let app = make_args();
+    let parsed = app.get_matches();
+    match parsed.subcommand_name() {
+        Some("listen") => listenery_shit(&mut conn),
+        _ => dispatch(parsed, &mut conn),
+    }
 }

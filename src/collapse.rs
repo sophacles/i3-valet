@@ -4,7 +4,6 @@ use i3ipc::reply::Node;
 use i3ipc::I3Connection;
 
 use crate::ext::{NodeSearch, Step};
-use crate::info;
 
 pub struct Collapse<'a> {
     pub target: &'a Node,
@@ -112,18 +111,16 @@ fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, Strin
     Ok(ops)
 }
 
-pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<usize, String> {
-    let mut collapse_ops = 0;
+pub fn clean_current_workspace(conn: &mut I3Connection) {
     loop {
-        info::print_ws(conn, &info::STD);
+        //info::print_ws(conn, &info::STD);
         let node = conn.get_tree().expect("No tree result!?");
         let ws = node
             .get_current_workspace()
             .expect("No current workspace!?");
-        let ops = collapse_workspace(ws, conn)?;
-        collapse_ops += ops;
+        let ops = collapse_workspace(ws, conn).unwrap_or(0);
         if ops == 0 {
-            return Ok(collapse_ops);
+            return;
         }
     }
 }
