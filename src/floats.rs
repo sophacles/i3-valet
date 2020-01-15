@@ -87,21 +87,25 @@ impl DisplayArea {
     }
 }
 
-pub fn teleport_float(conn: &mut I3Connection, to: Loc, pos: Positioning) -> Option<i64> {
+fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
+    it.ok_or(format!("Couldn't find in tree: {}", op))
+}
+
+pub fn teleport_float(conn: &mut I3Connection, to: Loc, pos: Positioning) -> Result<(), String> {
     println!("Teleport floating to: {:?}", to);
 
-    let tree = conn.get_tree().ok()?;
-    let current_window = tree.get_current_window()?;
+    let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+    let current_window = okers(tree.get_current_window(), "current window")?;
 
     let current_display = match pos {
-        Positioning::Relative => DisplayArea::content(&tree)?,
-        Positioning::Absolute => DisplayArea::display(&tree)?,
+        Positioning::Relative => okers(DisplayArea::content(&tree), "content")?,
+        Positioning::Absolute => okers(DisplayArea::display(&tree), "display")?,
     };
 
     let (x, y) = current_display.position_window(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e));
+    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
     debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Some(current_window.id)
+    Ok(())
 }

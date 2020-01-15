@@ -139,27 +139,28 @@ impl StepFormatter {
     }
 }
 
-pub fn pretty_print(n: &Node, fmt: &StepFormatter) {
+pub fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     println!("Tree:");
     for s in n.preorder() {
         println!("{}", fmt.format(&s));
     }
+    Ok(())
 }
 
-pub fn print_window(conn: &mut I3Connection, fmt: &StepFormatter) {
+pub fn print_window(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
     let node = conn.get_tree().expect("get_tree 1");
     let ws = node.get_current_window().expect("workspace 2");
-    pretty_print(ws, fmt);
+    pretty_print(ws, fmt)
 }
 
-pub fn print_ws(conn: &mut I3Connection, fmt: &StepFormatter) {
+pub fn print_ws(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
     let node = conn.get_tree().expect("get_tree 1");
     let ws = node.get_current_workspace().expect("workspace 2");
-    pretty_print(ws, fmt);
+    pretty_print(ws, fmt)
 }
 
-pub fn print_disp(conn: &mut I3Connection, fmt: &StepFormatter) {
+pub fn print_disp(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
     let node = conn.get_tree().expect("get_tree 1");
     let d = node.get_current_output().expect("workspace 2");
-    pretty_print(d, fmt);
+    pretty_print(d, fmt)
 }

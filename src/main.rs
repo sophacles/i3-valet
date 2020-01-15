@@ -6,40 +6,48 @@ extern crate i3ipc;
 #[macro_use]
 extern crate log;
 
+use std::io::{self, Write};
+
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use i3ipc::event::Event;
+use i3ipc::event::{BindingEventInfo, Event};
 use i3ipc::{I3Connection, I3EventListener, Subscription};
 
 use i3_valet::collapse::clean_current_workspace;
 use i3_valet::floats::{teleport_float, Loc, Positioning};
 use i3_valet::info;
 
-fn listener(command_conn: &mut I3Connection) {
+fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
+    debug!("Saw BindingEvent: {:#?}", e);
+    let mut args: Vec<&str> = e.binding.command.split_whitespace().collect();
+    match args.remove(0) {
+        "nop" => {
+            let cl = args.join(" ");
+            let m = make_args()
+                .setting(AppSettings::NoBinaryName)
+                .get_matches_from_safe(args)
+                .map_err(|e| format!("Cannot parse: {} => {}", cl, e.message))?;
+            dispatch(m, conn)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     let mut listener = I3EventListener::connect().unwrap();
 
     let subs = [Subscription::Binding, Subscription::Window];
     listener.subscribe(&subs).unwrap();
 
     for evt in listener.listen() {
-        match evt.unwrap() {
-            Event::BindingEvent(e) => {
-                debug!("Saw BindingEvent: {:#?}", e);
-                let mut args: Vec<&str> = e.binding.command.split_whitespace().collect();
-                if args.remove(0) == "nop" {
-                    let cl = args.join(" ");
-                    match make_args()
-                        .setting(AppSettings::NoBinaryName)
-                        .get_matches_from_safe(args)
-                    {
-                        Ok(m) => dispatch(m, command_conn),
-                        Err(e) => warn!("Cannot parse: {} => {}", cl, e.message),
-                    }
-                }
-            }
+        if let Err(res) = match evt.unwrap() {
+            Event::BindingEvent(e) => handle_binding_event(e, command_conn),
             _ => unreachable!("Can't happen, but here we are"),
+        } {
+            warn!("Encountered Error in listener: {}", res);
         }
     }
+    Ok(())
 }
 
 fn make_args<'a, 'b>() -> App<'a, 'b> {
@@ -81,18 +89,16 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
 }
 
 // TODO: make this happy with all the options and stuff
-fn dispatch(m: ArgMatches, conn: &mut I3Connection) {
+fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
     match m.subcommand_name() {
-        Some("fix") => {
-            clean_current_workspace(conn);
-        }
+        Some("fix") => clean_current_workspace(conn),
         Some("loc") => {
             let m = m.subcommand.unwrap().matches;
             teleport_float(
                 conn,
                 value_t!(m.value_of("where"), Loc).expect("possible values broke!"),
                 value_t!(m.value_of("how"), Positioning).expect("possible_values broke!"),
-            );
+            )
         }
         Some("print") => {
             let m = m.subcommand.unwrap().matches;
@@ -100,12 +106,12 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) {
                 "tree" => info::print_ws(conn, &info::STD),
                 "rects" => info::print_disp(conn, &info::RECT),
                 "window" => info::print_window(conn, &info::WINDOW),
-                _ => unreachable!("stupid possible_values failed"),
+                _ => Ok(unreachable!("stupid possible_values failed")),
             }
         }
-        Some("listen") => warn!("Cannot dispatch listen: cli command only."),
+        Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
         None => info::print_ws(conn, &info::STD),
-        Some(f) => warn!("Invalid command: {}", f),
+        Some(f) => Err(format!("Invalid command: {}", f)),
     }
 }
 
@@ -116,8 +122,15 @@ fn main() {
 
     let app = make_args();
     let parsed = app.get_matches();
-    match parsed.subcommand_name() {
+    if let Err(res) = match parsed.subcommand_name() {
         Some("listen") => listener(&mut conn),
         _ => dispatch(parsed, &mut conn),
+    } {
+        io::stderr().write_all(
+            format!("Error running command: {}", res)
+                .as_str()
+                .as_bytes(),
+        );
+        std::process::exit(1)
     }
 }

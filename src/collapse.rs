@@ -97,30 +97,25 @@ fn find_candidate(root: &Node) -> Option<&Node> {
 }
 
 fn collapse_workspace(ws: &Node, conn: &mut I3Connection) -> Result<usize, String> {
-    debug!("In collapse_workspace");
-    let mut ops: usize = 0;
-    //for x in find_candidates(ws) {
     if let Some(x) = find_candidate(ws) {
         let cmd = format!("[con_id={}] move left", x.id);
-        debug!("RUN:{}", cmd);
-        let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-        debug!("GOT: {:?}", r);
-        ops += 1;
+        conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
     }
-    debug!("collapse done");
-    Ok(ops)
+    Ok(0)
 }
 
-pub fn clean_current_workspace(conn: &mut I3Connection) {
+pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<(), String> {
     loop {
-        //info::print_ws(conn, &info::STD);
-        let node = conn.get_tree().expect("No tree result!?");
+        let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
         let ws = node
             .get_current_workspace()
             .expect("No current workspace!?");
-        let ops = collapse_workspace(ws, conn).unwrap_or(0);
-        if ops == 0 {
-            return;
+        if let Some(candidate) = find_candidate(ws) {
+            let cmd = format!("[con_id={}] move left", candidate.id);
+            conn.run_command(&cmd)
+                .map_err(|e| format!("Run command: {:?}", e))?;
+        } else {
+            return Ok(());
         }
     }
 }
