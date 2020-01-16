@@ -6,8 +6,6 @@ extern crate i3ipc;
 #[macro_use]
 extern crate log;
 
-use std::io::{self, Write};
-
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use i3ipc::event::{BindingEventInfo, Event};
@@ -40,7 +38,7 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     listener.subscribe(&subs).unwrap();
 
     for evt in listener.listen() {
-        if let Err(res) = match evt.unwrap() {
+        if let Err(res) = match evt.map_err(|_| "Connection died, i3 is most likey termnating")? {
             Event::BindingEvent(e) => handle_binding_event(e, command_conn),
             _ => unreachable!("Can't happen, but here we are"),
         } {
@@ -115,7 +113,6 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
     }
 }
 
-#[allow(unused_must_use)]
 fn main() {
     env_logger::init();
 
@@ -127,12 +124,8 @@ fn main() {
         Some("listen") => listener(&mut conn),
         _ => dispatch(parsed, &mut conn),
     } {
-        // TODO: fix the cheat (unused_must_use above)
-        io::stderr().write_all(
-            format!("Error running command: {}", res)
-                .as_str()
-                .as_bytes(),
-        );
-        std::process::exit(1)
+        eprint!("Error running command: {}\n", res);
+        std::process::exit(1);
     }
+    println!("Goodbye?!");
 }
