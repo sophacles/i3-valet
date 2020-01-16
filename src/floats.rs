@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
-use i3ipc::reply::Node;
-use i3ipc::I3Connection;
+use i3ipc::{reply::Node, I3Connection};
 
 use crate::ext::NodeSearch;
 

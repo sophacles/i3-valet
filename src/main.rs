@@ -8,12 +8,16 @@ extern crate log;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use i3ipc::event::{BindingEventInfo, Event};
-use i3ipc::{I3Connection, I3EventListener, Subscription};
+use i3ipc::{
+    event::{BindingEventInfo, Event},
+    I3Connection, I3EventListener, Subscription,
+};
 
-use i3_valet::collapse::clean_current_workspace;
-use i3_valet::floats::{teleport_float, Loc, Positioning};
-use i3_valet::info;
+use i3_valet::{
+    collapse::clean_current_workspace,
+    floats::{teleport_float, Loc, Positioning},
+    info,
+};
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
