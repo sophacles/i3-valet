@@ -32,6 +32,8 @@ lazy_static! {
 }
 
 pub struct StepFormatter {
+    // shorten id since much of it is redundant
+    short_id: bool,
     // if depth is on, indent by depth spaces
     indent: bool,
     // track columns
@@ -50,6 +52,7 @@ impl StepFormatter {
     pub fn new() -> Self {
         StepFormatter {
             indent: true,
+            short_id: true,
             depth: false,
             id: false,
             name: false,
@@ -62,8 +65,14 @@ impl StepFormatter {
         }
     }
 
-    pub fn show_indent(&mut self, v: bool) {
+    pub fn show_indent(&mut self, v: bool) -> &mut StepFormatter {
         self.indent = v;
+        self
+    }
+
+    pub fn short_id(&mut self, v: bool) -> &mut StepFormatter {
+        self.short_id = v;
+        self
     }
 
     pub fn set(&mut self, what: &str) -> &mut StepFormatter {
@@ -116,7 +125,13 @@ impl StepFormatter {
         }
 
         if self.id {
-            out.push(format!("{}", s.n.id));
+            if self.short_id {
+                let s = format!("{}", s.n.id);
+                let last = &s[s.len() - 5..];
+                out.push(format!("{}", last));
+            } else {
+                out.push(format!("{}", s.n.id));
+            }
         }
         if self.focus {
             out.push(format!(

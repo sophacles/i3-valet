@@ -15,7 +15,9 @@ use i3ipc::{
 use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
-    info, output,
+    info,
+    manage::is_shaped_right,
+    output,
     workspace::{alloc_workspace, move_to_new_ws},
 };
 
@@ -67,6 +69,7 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
         .author("sophacles@gmail.com")
         .about("tend to your windows")
         .subcommand(SubCommand::with_name("fix").about("clean up the window tree"))
+        .subcommand(SubCommand::with_name("shape").about("Something..."))
         .subcommand(
             SubCommand::with_name("loc")
             .about("Move a floating window to anchor point")
@@ -168,6 +171,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 _ => unreachable!("stupid possible_values failed"),
             }
         }
+        Some("shape") => is_shaped_right(conn),
         Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
         None => info::print_ws(conn, &info::STD),
         Some(f) => Err(format!("Unknown command: {}", f)),
