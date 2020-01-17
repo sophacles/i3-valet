@@ -1,109 +1,56 @@
 extern crate log;
-use std::cmp::{Ord, Ordering};
+
+use std::collections::HashSet;
 
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::{NodeSearch, Step};
+use crate::ext::NodeSearch;
 
-pub struct Collapse<'a> {
-    pub target: &'a Node,
-    pub candidate: &'a Node,
-}
-
-#[derive(Debug)]
-enum CollapseState<'a> {
-    Candidate(Step<'a>),
-    Collapsing(Step<'a>),
-    Fresh,
-}
-
-impl<'a> CollapseState<'a> {
-    fn pretty(&'a self) -> String {
-        match self {
-            CollapseState::Candidate(s) => format!("Candidate({})", s.n.id),
-            CollapseState::Collapsing(s) => format!("Collapsing({})", s.n.id),
-            CollapseState::Fresh => String::from("Fresh"),
+fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
+    let mut leaves_seen = HashSet::new();
+    let mut res: Vec<(&Node, i64)> = Vec::with_capacity(2);
+    for s in root.preorder() {
+        println!("Walk to: id({})", s.n.id);
+        // skip root since it's a workspace and that gets messy
+        // with marking and moving to mark...
+        if s.d == 0 {
+            continue;
         }
-    }
-}
 
-#[derive(Debug, PartialEq)]
-enum Move {
-    Up,
-    Down,
-    Sibling,
-}
-
-impl Move {
-    fn new(cur: &Step, last: &Step) -> Move {
-        match cur.d.cmp(&last.d) {
-            Ordering::Greater => Move::Down,
-            Ordering::Equal => Move::Sibling,
-            Ordering::Less => Move::Up,
-        }
-    }
-}
-
-// postorder traversal lets us look for changes in depth easily.
-// Any window that has no siblings is a candidate to merge up.
-// The target node is the first parent that has multiple children, where we wish to reparent the
-// candidate.
-// The depth limit of 2 is because the current implementation does a simple window move to cause i3
-// to collapse the child up. Room for improvement here includes breadcrumbs or similar to have the
-// necesarry motions understood and performed all at once.
-fn find_candidate(root: &Node) -> Option<&Node> {
-    let mut candidate = CollapseState::Fresh;
-    let mut prev = Step { d: 0, n: root };
-
-    for cur in root.postorder() {
-        let mc = Move::new(&cur, &prev);
-        debug!(
-            "{}:{} - {:?} ** {}",
-            cur.d,
-            cur.n.id,
-            mc,
-            candidate.pretty()
-        );
-        match candidate {
-            CollapseState::Collapsing(c) => {
-                if c.d > 2 {
-                    debug!("Pushing {}", c.n.id);
-                    debug!("collapse: {} <== {}", c.n.id, prev.n.id);
-                    return Some(c.n);
-                }
+        for child in s.n.nodes.iter() {
+            let mut n = child;
+            while n.nodes.len() == 1 {
+                n = &n.nodes[0];
             }
-            CollapseState::Candidate(c) => {
-                if mc == Move::Up {
-                    candidate = CollapseState::Collapsing(c);
-                }
+
+            // First time we encounter a leave have zipped down from the highest
+            // so put that in the set, then don't bother with it later to avoid
+            // harmless but redundant commands
+            if n.id != child.id && !leaves_seen.contains(&n.id) {
+                leaves_seen.insert(n.id);
+                res.push((n, s.n.id));
             }
-            _ => (),
-        };
-
-        if mc == Move::Down && cur.d > 2 {
-            candidate = CollapseState::Candidate(cur.clone());
-        } else if mc == Move::Sibling {
-            candidate = CollapseState::Fresh;
         }
-
-        prev = cur;
     }
-    debug!("No candidate");
-    None
+    res
 }
 
 pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<(), String> {
     loop {
+        //crate::info::print_ws(conn, &info::STD);
         let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
         let ws = node
             .get_current_workspace()
             .expect("No current workspace!?");
-        if let Some(candidate) = find_candidate(ws) {
-            let cmd = format!("[con_id={}] move left", candidate.id);
+        for (candidate, to) in find_candidate(ws) {
+            let cmd = format!(
+                "[con_id={}] mark i3v; [con_id={}] move container to mark i3v; unmark i3v",
+                to, candidate.id
+            );
+            debug!("{}", cmd);
             conn.run_command(&cmd)
                 .map_err(|e| format!("Run command: {:?}", e))?;
-        } else {
-            return Ok(());
         }
+        return Ok(());
     }
 }

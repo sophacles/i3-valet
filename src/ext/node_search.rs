@@ -1,3 +1,5 @@
+use std::cmp::{Ord, Ordering};
+
 use super::node_ext::NodeExt;
 use i3ipc::reply::{Node, NodeType};
 
@@ -47,20 +49,38 @@ impl NodeSearch for Node {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Move {
+    Up,
+    Down,
+    Sibling,
+}
+
+impl Move {
+    fn new(cur: &usize, last: &usize) -> Move {
+        match cur.cmp(&last) {
+            Ordering::Greater => Move::Down,
+            Ordering::Equal => Move::Sibling,
+            Ordering::Less => Move::Up,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Step<'a> {
     pub d: usize,
+    pub m: Move,
     pub n: &'a Node,
 }
 
 pub struct PostOrder<'a> {
-    stack: Vec<(usize, Step<'a>)>,
+    stack: Vec<(usize, usize, &'a Node)>,
 }
 
 impl<'a> PostOrder<'a> {
     fn new(n: &'a Node) -> Self {
         let mut stack = Vec::with_capacity(16);
-        stack.push((0, Step { d: 0, n }));
+        stack.push((0, 0, n));
         PostOrder { stack }
     }
 }
@@ -69,38 +89,60 @@ impl<'a> Iterator for PostOrder<'a> {
     type Item = Step<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (i, s) = self.stack.pop()?;
-        let mut n = match s.n.nodes.get(i) {
+        let (get_child_idx, mut depth, container) = self.stack.pop()?;
+        // if no more children to traverse, we're the step!
+        let mut n = match container.nodes.get(get_child_idx) {
             Some(n) => n,
-            None => return Some(s),
+            None => {
+                return Some(Step {
+                    d: depth,
+                    m: Move::Up,
+                    n: container,
+                })
+            }
         };
-        let mut d = s.d + 1;
+        // push ourself back on first, and look at the next kid
+        self.stack.push((get_child_idx + 1, depth, container));
 
-        // push ourself on first
-        self.stack.push((i + 1, s));
+        depth += 1;
 
         // push the ith child, since thats the branch to go down
         while n.has_children() {
             // 1 here, not 0 since we're taking the 0 path on the ride down
-            self.stack.push((1, Step { d, n }));
+            self.stack.push((1, depth, n));
             n = &n.nodes[0];
-            d += 1
+            depth += 1;
         }
+
         // n is now the childless bottom, so we return it.
-        Some(Step { d, n })
+        let top = &self.stack[self.stack.len() - 1];
+        // The current node was reached from a parent (top).
+        // We got to the current node by the previous value of top.0
+        // top.0 is the index of the child to follow the next iteration.
+        // So we added 1 when it got pushed.
+        // so to get here we were top.0 - 1. If that number is 0, we're first
+        // child and cannot be a sibling.
+        // get_child (top.0) is only 0 for root explicitly, after that it's a least 1
+        let m = match top.1 == depth || top.0 > 1 {
+            true => Move::Sibling,
+            false => Move::Down,
+        };
+
+        Some(Step { d: depth, m, n })
     }
 }
 
 pub struct PreOrder<'a> {
-    stack: Vec<Step<'a>>,
+    stack: Vec<(usize, &'a Node)>,
+    last_d: usize,
 }
 
 impl<'a> PreOrder<'a> {
     fn new(n: &'a Node) -> Self {
         // thats super nested... but a nice power of 2
         let mut stack = Vec::with_capacity(16);
-        stack.push(Step { d: 0, n });
-        PreOrder { stack }
+        stack.push((0, n));
+        PreOrder { last_d: 0, stack }
     }
 }
 
@@ -108,11 +150,14 @@ impl<'a> Iterator for PreOrder<'a> {
     type Item = Step<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let res = self.stack.pop()?;
-        let d = res.d + 1;
-        for n in res.n.nodes.iter().rev() {
-            self.stack.push(Step { d, n });
+        let (d, container) = self.stack.pop()?;
+        let new_d = d + 1;
+        for n in container.nodes.iter().rev() {
+            self.stack.push((new_d, n));
         }
-        Some(res)
+
+        let m = Move::new(&d, &self.last_d);
+        self.last_d = d;
+        Some(Step { d, m, n: container })
     }
 }

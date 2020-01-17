@@ -9,7 +9,8 @@ lazy_static! {
             .set("depth")
             .set("name")
             .set("layout")
-            .set("marks");
+            .set("marks")
+            .set("move");
         fmt
     };
     pub static ref RECT: StepFormatter = {
@@ -42,6 +43,7 @@ pub struct StepFormatter {
     rect: bool,
     marks: bool,
     floating: bool,
+    moveto: bool,
 }
 
 impl StepFormatter {
@@ -56,6 +58,7 @@ impl StepFormatter {
             rect: false,
             marks: false,
             floating: false,
+            moveto: false,
         }
     }
 
@@ -73,6 +76,7 @@ impl StepFormatter {
             "rect" => self.rect = true,
             "marks" => self.marks = true,
             "floating" => self.floating = true,
+            "move" => self.moveto = true,
             _ => (),
         }
         self
@@ -88,6 +92,7 @@ impl StepFormatter {
             "rect" => self.rect = false,
             "marks" => self.marks = false,
             "floating" => self.floating = false,
+            "move" => self.moveto = false,
             _ => (),
         }
         self
@@ -134,6 +139,10 @@ impl StepFormatter {
         if self.floating {
             out.push(format!("{:.1}", s.n.is_floating()));
         }
+        if self.moveto {
+            out.push(format!("{:?}", s.m));
+        }
+
         out.join(" ")
     }
 }
@@ -141,6 +150,14 @@ impl StepFormatter {
 pub fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     println!("Tree:");
     for s in n.preorder() {
+        println!("{}", fmt.format(&s));
+    }
+    Ok(())
+}
+
+pub fn post_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
+    println!("Tree:");
+    for s in n.postorder() {
         println!("{}", fmt.format(&s));
     }
     Ok(())
@@ -155,6 +172,8 @@ pub fn print_window(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), 
 pub fn print_ws(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
     let node = conn.get_tree().expect("get_tree 1");
     let ws = node.get_current_workspace().expect("workspace 2");
+
+    println!("pre:");
     pretty_print(ws, fmt)
 }
 
