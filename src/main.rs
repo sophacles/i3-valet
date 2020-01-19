@@ -17,6 +17,7 @@ use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
     info,
+    workspace::alloc_workspsace,
 };
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
@@ -38,7 +39,7 @@ fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<
 fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     let mut listener = I3EventListener::connect().unwrap();
 
-    let subs = [Subscription::Binding, Subscription::Window];
+    let subs = [Subscription::Binding];
     listener.subscribe(&subs).unwrap();
 
     for evt in listener.listen() {
@@ -87,6 +88,18 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
                     .possible_values(&["tree", "rects", "window"]),
             ),
         )
+        .subcommand(
+            SubCommand::with_name("workspace")
+            .about("Workspace commands")
+            .arg(
+                // TODO: replace me with subsubcommands
+                Arg::with_name("target")
+                    .help("what do do")
+                    .index(1)
+                    .required(true)
+                    .possible_values(&["alloc"]),
+            ),
+        )
         .subcommand(SubCommand::with_name("listen").about("connect to i3 socket and wait for events"))
 }
 
@@ -108,6 +121,13 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 "tree" => info::print_ws(conn, &info::STD),
                 "rects" => info::print_disp(conn, &info::RECT),
                 "window" => info::print_window(conn, &info::WINDOW),
+                _ => unreachable!("stupid possible_values failed"),
+            }
+        }
+        Some("workspace") => {
+            let m = m.subcommand.unwrap().matches;
+            match m.value_of("target").unwrap() {
+                "alloc" => alloc_workspsace(conn),
                 _ => unreachable!("stupid possible_values failed"),
             }
         }

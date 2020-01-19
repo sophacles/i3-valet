@@ -10,3 +10,4 @@ pub mod collapse;
 pub mod ext;
 pub mod floats;
 pub mod info;
+pub mod workspace;
