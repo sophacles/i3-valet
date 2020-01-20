@@ -7,7 +7,6 @@ extern crate i3ipc;
 extern crate log;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-
 use i3ipc::{
     event::{BindingEventInfo, Event},
     I3Connection, I3EventListener, Subscription,
@@ -168,7 +167,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
         }
         Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
         None => info::print_ws(conn, &info::STD),
-        Some(f) => Err(format!("Invalid command: {}", f)),
+        Some(f) => Err(format!("Unknown command: {}", f)),
     }
 }
 

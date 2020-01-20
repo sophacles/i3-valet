@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::NodeSearch;
+use crate::ext::{i3_command, NodeSearch};
 
 #[derive(Debug)]
 pub enum Loc {
@@ -104,7 +104,5 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, pos: Positioning) -> Res
     let (x, y) = current_display.position_window(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Ok(())
+    i3_command(&cmd, conn)
 }

@@ -1,5 +1,7 @@
 use i3ipc::I3Connection;
 
+use crate::ext::i3_command;
+
 enum Direction {
     Next,
     Prev,
@@ -7,6 +9,8 @@ enum Direction {
 
 // TODO: clean me up
 fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String> {
+    // find current workspace since that will
+    // also tell us the current output
     let ws_reply = conn
         .get_workspaces()
         .map_err(|e| format!("Get workspaces: {:?}", e))?;
@@ -19,6 +23,8 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
 
     let current_output = current_ws.output;
 
+    // get the list of active output names.
+    // active seems to mean "can display things"
     let output_list = conn
         .get_outputs()
         .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
@@ -53,34 +59,26 @@ pub fn focus_next(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Next, conn)?;
 
     let cmd = format!("focus output {}", target);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Ok(())
+    i3_command(&cmd, conn)
 }
 
 pub fn focus_prev(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Prev, conn)?;
 
     let cmd = format!("focus output {}", target);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Ok(())
+    i3_command(&cmd, conn)
 }
 
 pub fn workspace_to_next(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Next, conn)?;
 
     let cmd = format!("move workspace to output {}", target);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Ok(())
+    i3_command(&cmd, conn)
 }
 
 pub fn workspace_to_prev(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Prev, conn)?;
 
     let cmd = format!("move workspace to output {}", target);
-    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
-    debug!("RUN:{}\nGOT: {:?}", cmd, r);
-    Ok(())
+    i3_command(&cmd, conn)
 }

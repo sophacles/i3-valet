@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::NodeSearch;
+use crate::ext::{i3_command, NodeSearch};
 
 fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
     let mut leaves_seen = HashSet::new();
@@ -23,9 +23,10 @@ fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
                 n = &n.nodes[0];
             }
 
-            // First time we encounter a leave have zipped down from the highest
-            // so put that in the set, then don't bother with it later to avoid
-            // harmless but redundant commands
+            // First time we encounter a leaf we have traversed from
+            // the "highest" point - the one closest to root - so we
+            // track the seen leaves, and ignore when they are found
+            // again, since it's an ignored command issuee otherwise
             if n.id != child.id && !leaves_seen.contains(&n.id) {
                 leaves_seen.insert(n.id);
                 res.push((n, s.n.id));
@@ -47,9 +48,7 @@ pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<(), String> {
                 "[con_id={}] mark i3v; [con_id={}] move container to mark i3v; unmark i3v",
                 to, candidate.id
             );
-            debug!("{}", cmd);
-            conn.run_command(&cmd)
-                .map_err(|e| format!("Run command: {:?}", e))?;
+            i3_command(&cmd, conn)?;
         }
         return Ok(());
     }
