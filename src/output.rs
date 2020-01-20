@@ -49,7 +49,7 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
     Err("There's no output to select?".to_owned())
 }
 
-pub fn focus_next_output(conn: &mut I3Connection) -> Result<(), String> {
+pub fn focus_next(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Next, conn)?;
 
     let cmd = format!("focus output {}", target);
@@ -58,10 +58,28 @@ pub fn focus_next_output(conn: &mut I3Connection) -> Result<(), String> {
     Ok(())
 }
 
-pub fn focus_prev_output(conn: &mut I3Connection) -> Result<(), String> {
+pub fn focus_prev(conn: &mut I3Connection) -> Result<(), String> {
     let target = neighbor(Direction::Prev, conn)?;
 
     let cmd = format!("focus output {}", target);
+    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
+    debug!("RUN:{}\nGOT: {:?}", cmd, r);
+    Ok(())
+}
+
+pub fn workspace_to_next(conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(Direction::Next, conn)?;
+
+    let cmd = format!("move workspace to output {}", target);
+    let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
+    debug!("RUN:{}\nGOT: {:?}", cmd, r);
+    Ok(())
+}
+
+pub fn workspace_to_prev(conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(Direction::Prev, conn)?;
+
+    let cmd = format!("move workspace to output {}", target);
     let r = conn.run_command(&cmd).map_err(|e| format!("{}", e))?;
     debug!("RUN:{}\nGOT: {:?}", cmd, r);
     Ok(())

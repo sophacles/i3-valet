@@ -16,8 +16,7 @@ use i3ipc::{
 use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
-    info,
-    output::{focus_next_output, focus_prev_output},
+    info, output,
     workspace::alloc_workspsace,
 };
 
@@ -103,12 +102,19 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(
             SubCommand::with_name("output")
-            .about("Workspace commands")
+            .about("Output commands")
+            // TODO: replace me with subsubcommands
             .arg(
-                // TODO: replace me with subsubcommands
-                Arg::with_name("target")
-                    .help("what do do")
+                Arg::with_name("cmd")
+                    .help("where to go")
                     .index(1)
+                    .required(true)
+                    .possible_values(&["focus", "move-ws"]),
+                    )
+            .arg(
+                Arg::with_name("target")
+                    .help("where to go")
+                    .index(2)
                     .required(true)
                     .possible_values(&["next", "prev"]),
             ),
@@ -146,9 +152,17 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
         }
         Some("output") => {
             let m = m.subcommand.unwrap().matches;
-            match m.value_of("target").unwrap() {
-                "next" => focus_next_output(conn),
-                "prev" => focus_prev_output(conn),
+            match m.value_of("cmd").unwrap() {
+                "focus" => match m.value_of("target").unwrap() {
+                    "next" => output::focus_next(conn),
+                    "prev" => output::focus_prev(conn),
+                    _ => unreachable!("stupid possible_values failed"),
+                },
+                "move-ws" => match m.value_of("target").unwrap() {
+                    "next" => output::workspace_to_next(conn),
+                    "prev" => output::workspace_to_prev(conn),
+                    _ => unreachable!("stupid possible_values failed"),
+                },
                 _ => unreachable!("stupid possible_values failed"),
             }
         }
