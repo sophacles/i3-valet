@@ -17,6 +17,7 @@ use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
     info,
+    output::{focus_next_output, focus_prev_output},
     workspace::alloc_workspsace,
 };
 
@@ -100,6 +101,18 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
                     .possible_values(&["alloc"]),
             ),
         )
+        .subcommand(
+            SubCommand::with_name("output")
+            .about("Workspace commands")
+            .arg(
+                // TODO: replace me with subsubcommands
+                Arg::with_name("target")
+                    .help("what do do")
+                    .index(1)
+                    .required(true)
+                    .possible_values(&["next", "prev"]),
+            ),
+        )
         .subcommand(SubCommand::with_name("listen").about("connect to i3 socket and wait for events"))
 }
 
@@ -128,6 +141,14 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
             let m = m.subcommand.unwrap().matches;
             match m.value_of("target").unwrap() {
                 "alloc" => alloc_workspsace(conn),
+                _ => unreachable!("stupid possible_values failed"),
+            }
+        }
+        Some("output") => {
+            let m = m.subcommand.unwrap().matches;
+            match m.value_of("target").unwrap() {
+                "next" => focus_next_output(conn),
+                "prev" => focus_prev_output(conn),
                 _ => unreachable!("stupid possible_values failed"),
             }
         }
