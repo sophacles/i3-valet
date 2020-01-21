@@ -21,13 +21,14 @@ use i3_valet::{
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
+    // TODO: make this just do multiple things
     let mut args: Vec<&str> = e.binding.command.split_whitespace().collect();
     match args.remove(0) {
         "nop" => {
             let cl = args.join(" ");
             let m = make_args()
                 .setting(AppSettings::NoBinaryName)
-                .get_matches_from_safe(args)
+                .get_matches_from_safe(args.iter().take_while(|x| **x != ";"))
                 .map_err(|e| format!("Cannot parse: {} => {}", cl, e.message))?;
             dispatch(m, conn)
         }
