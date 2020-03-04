@@ -58,6 +58,10 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
 }
 
 fn make_args<'a, 'b>() -> App<'a, 'b> {
+    let output_args = Arg::with_name("target")
+        .help("where to go")
+        .required(true)
+        .possible_values(&["next", "prev"]);
     App::new("i3-valet")
         .version("0.1")
         .author("sophacles@gmail.com")
@@ -104,18 +108,16 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
             SubCommand::with_name("output")
             .about("Output commands")
             // TODO: replace me with subsubcommands
-            .arg(
-                Arg::with_name("cmd")
-                    .help("where to go")
-                    .required(true)
-                    .possible_values(&["focus", "move-ws"]),
-                    )
-            .arg(
-                Arg::with_name("target")
-                    .help("where to go")
-                    .required(true)
-                    .possible_values(&["next", "prev"]),
-            ),
+            .subcommand(
+                SubCommand::with_name("move")
+                .about("move to a different output")
+                .arg(output_args.clone()),
+            )
+            .subcommand(
+                SubCommand::with_name("focus")
+                .about("focus a different output")
+                .arg(output_args.clone()),
+            )
         )
         .subcommand(SubCommand::with_name("listen").about("connect to i3 socket and wait for events"))
 }
@@ -151,17 +153,18 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
         }
         Some("output") => {
             let m = m.subcommand.unwrap().matches;
-            match m.value_of("cmd").unwrap() {
-                "focus" => match m.value_of("target").unwrap() {
-                    "next" => output::focus_next(conn),
-                    "prev" => output::focus_prev(conn),
-                    _ => unreachable!("stupid possible_values failed"),
-                },
-                "move-ws" => match m.value_of("target").unwrap() {
-                    "next" => output::workspace_to_next(conn),
-                    "prev" => output::workspace_to_prev(conn),
-                    _ => unreachable!("stupid possible_values failed"),
-                },
+            let (n, mm) = m.subcommand();
+            //let m = m.ok_or(String::from("Must provide a subcommand to Output"))?;
+            let funcs: (fn(_) -> _, fn(_) -> _) = match n {
+                "focus" => (output::focus_next, output::focus_prev),
+                "move" => (output::workspace_to_next, output::workspace_to_prev),
+                "" => return Err(format!(" no args for output\n\n{}", m.usage())),
+                _ => unreachable!(n),
+            };
+            let m = mm.unwrap();
+            match m.value_of("target").unwrap() {
+                "next" => funcs.0(conn),
+                "prev" => funcs.1(conn),
                 _ => unreachable!("stupid possible_values failed"),
             }
         }
