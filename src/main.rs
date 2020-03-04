@@ -16,13 +16,14 @@ use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
     info, output,
-    workspace::alloc_workspsace,
+    workspace::{alloc_workspace, move_to_new_ws},
 };
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
     // TODO: this is certainly fragile
     for line in e.binding.command.split(';') {
+        println!("Running line: {}", line);
         let mut args: Vec<&str> = line.split_whitespace().collect();
         match args.remove(0) {
             "nop" => {
@@ -68,14 +69,12 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
                 .arg(
                     Arg::with_name("how")
                         .help("Positioning of window.\n'abs' is relative to the output\n'rel' is relative to the content area\n")
-                        .index(1)
                         .required(true)
                         .possible_values(&["abs", "rel"]),
                 )
                 .arg(
                     Arg::with_name("where")
                         .help("Anchor point to position window\n")
-                        .index(2)
                         .required(true)
                         .possible_values(&["nw", "ne", "sw", "se", "bot", "top", "left", "right"]),
                 ),
@@ -86,7 +85,6 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
             .arg(
                 Arg::with_name("target")
                     .help("what to print")
-                    .index(1)
                     .required(true)
                     .possible_values(&["tree", "rects", "window"]),
             ),
@@ -98,9 +96,8 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
                 // TODO: replace me with subsubcommands
                 Arg::with_name("target")
                     .help("what do do")
-                    .index(1)
                     .required(true)
-                    .possible_values(&["alloc"]),
+                    .possible_values(&["alloc", "move-new"]),
             ),
         )
         .subcommand(
@@ -110,14 +107,12 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
             .arg(
                 Arg::with_name("cmd")
                     .help("where to go")
-                    .index(1)
                     .required(true)
                     .possible_values(&["focus", "move-ws"]),
                     )
             .arg(
                 Arg::with_name("target")
                     .help("where to go")
-                    .index(2)
                     .required(true)
                     .possible_values(&["next", "prev"]),
             ),
@@ -149,7 +144,8 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
         Some("workspace") => {
             let m = m.subcommand.unwrap().matches;
             match m.value_of("target").unwrap() {
-                "alloc" => alloc_workspsace(conn),
+                "alloc" => alloc_workspace(conn),
+                "move-new" => move_to_new_ws(conn),
                 _ => unreachable!("stupid possible_values failed"),
             }
         }

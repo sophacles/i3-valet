@@ -2,7 +2,7 @@ use i3ipc::I3Connection;
 
 use crate::ext::i3_command;
 
-pub fn alloc_workspsace(conn: &mut I3Connection) -> Result<(), String> {
+pub fn next_free_workspace(conn: &mut I3Connection) -> Result<i32, String> {
     let ws_reply = conn
         .get_workspaces()
         .map_err(|e| format!("Get workspaces: {:?}", e))?;
@@ -24,7 +24,17 @@ pub fn alloc_workspsace(conn: &mut I3Connection) -> Result<(), String> {
         }
         prev = ws.num;
     }
+    Ok(prev + 1)
+}
 
-    let cmd = format!("workspace {}", prev + 1);
+pub fn alloc_workspace(conn: &mut I3Connection) -> Result<(), String> {
+    let ws = next_free_workspace(conn)?;
+    let cmd = format!("workspace {}", ws);
+    i3_command(&cmd, conn)
+}
+
+pub fn move_to_new_ws(conn: &mut I3Connection) -> Result<(), String> {
+    let ws = next_free_workspace(conn)?;
+    let cmd = format!("move container to workspace {}; workspace {}", ws, ws);
     i3_command(&cmd, conn)
 }
