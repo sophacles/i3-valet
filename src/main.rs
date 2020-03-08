@@ -16,7 +16,7 @@ use i3_valet::{
     collapse::clean_current_workspace,
     floats::{teleport_float, Loc, Positioning},
     info,
-    manage::is_shaped_right,
+    manage::{focus_main, make_main, swap_main},
     output,
     workspace::{alloc_workspace, move_to_new_ws},
 };
@@ -24,11 +24,17 @@ use i3_valet::{
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
     // TODO: this is certainly fragile
-    for line in e.binding.command.split(';') {
-        println!("Running line: {}", line);
-        let mut args: Vec<&str> = line.split_whitespace().collect();
+    println!("Caught command: {}", e.binding.command);
+    for subcmd in e.binding.command.split(';') {
+        print!("Processing: {} ... ", subcmd);
+        let mut args: Vec<&str> = subcmd.split_whitespace().collect();
+        if args.len() == 0 {
+            println!("Skipping!");
+            continue;
+        }
         match args.remove(0) {
             "nop" => {
+                println!("Handling!");
                 let cl = args.join(" ");
                 let m = make_args()
                     .setting(AppSettings::NoBinaryName)
@@ -36,7 +42,10 @@ fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<
                     .map_err(|e| format!("Cannot parse: {} => {}", cl, e.message))?;
                 dispatch(m, conn)?
             }
-            _ => continue,
+            _ => {
+                println!("Skipping!");
+                continue;
+            }
         }
     }
     Ok(())
@@ -69,7 +78,6 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
         .author("sophacles@gmail.com")
         .about("tend to your windows")
         .subcommand(SubCommand::with_name("fix").about("clean up the window tree"))
-        .subcommand(SubCommand::with_name("shape").about("Something..."))
         .subcommand(
             SubCommand::with_name("loc")
             .about("Move a floating window to anchor point")
@@ -122,6 +130,20 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
                 .arg(output_args.clone()),
             )
         )
+        .subcommand(
+            SubCommand::with_name("layout")
+            .about("Layout management commands")
+            .subcommand(
+                SubCommand::with_name("main")
+                .about("Commands related to main windows")
+                .arg(
+                    Arg::with_name("action")
+                    .help("Main window commands, set or swap with main")
+                    .required(true)
+                    .possible_values(&["set", "swap", "focus"])
+                )
+            )
+        )
         .subcommand(SubCommand::with_name("listen").about("connect to i3 socket and wait for events"))
 }
 
@@ -171,7 +193,21 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 _ => unreachable!("stupid possible_values failed"),
             }
         }
-        Some("shape") => is_shaped_right(conn),
+        Some("layout") => {
+            let m = m.subcommand.unwrap().matches;
+            let (name, submatches) = m.subcommand();
+            println!("Name is: {}, matches is: {:?}", name, submatches);
+            match name {
+                "main" => match submatches.unwrap().value_of("action").unwrap() {
+                    "set" => make_main(conn),
+                    "swap" => swap_main(conn),
+                    "focus" => focus_main(conn),
+                    _ => unreachable!("um, should have set val"),
+                },
+                "" => return Err(format!("Must choose subcommand from:\n\n{}", m.usage())),
+                _ => unreachable!("bah"),
+            }
+        }
         Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
         None => info::print_ws(conn, &info::STD),
         Some(f) => Err(format!("Unknown command: {}", f)),

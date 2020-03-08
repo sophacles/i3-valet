@@ -39,6 +39,16 @@ pub trait NodeSearch {
     fn get_current_window(&self) -> Option<&Node> {
         self.search_focus_path(|n| n.focused)
     }
+
+    /// Find a node with the provided mark
+    fn find_mark(&self, mark: &str) -> Option<&Node> {
+        for s in self.preorder() {
+            if s.n.marks.contains(&mark.to_string()) {
+                return Some(s.n);
+            }
+        }
+        None
+    }
 }
 
 impl NodeSearch for Node {
