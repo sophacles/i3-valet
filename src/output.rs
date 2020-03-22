@@ -82,3 +82,17 @@ pub fn workspace_to_prev(conn: &mut I3Connection) -> Result<(), String> {
     let cmd = format!("move workspace to output {}", target);
     i3_command(&cmd, conn)
 }
+
+pub fn window_to_next(conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(Direction::Next, conn)?;
+
+    let cmd = format!("move window to output {}", target);
+    i3_command(&cmd, conn)
+}
+
+pub fn window_to_prev(conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(Direction::Prev, conn)?;
+
+    let cmd = format!("move window to output {}", target);
+    i3_command(&cmd, conn)
+}

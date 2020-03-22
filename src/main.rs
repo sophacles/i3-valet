@@ -120,8 +120,13 @@ fn make_args<'a, 'b>() -> App<'a, 'b> {
             .about("Output commands")
             // TODO: replace me with subsubcommands
             .subcommand(
-                SubCommand::with_name("move")
-                .about("move to a different output")
+                SubCommand::with_name("move-ws")
+                .about("move workspace to a different output")
+                .arg(output_args.clone()),
+            )
+            .subcommand(
+                SubCommand::with_name("move-win")
+                .about("move workspace to a different output")
                 .arg(output_args.clone()),
             )
             .subcommand(
@@ -182,7 +187,8 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
             //let m = m.ok_or(String::from("Must provide a subcommand to Output"))?;
             let funcs: (fn(_) -> _, fn(_) -> _) = match n {
                 "focus" => (output::focus_next, output::focus_prev),
-                "move" => (output::workspace_to_next, output::workspace_to_prev),
+                "move-ws" => (output::workspace_to_next, output::workspace_to_prev),
+                "move-win" => (output::window_to_next, output::window_to_prev),
                 "" => return Err(format!(" no args for output\n\n{}", m.usage())),
                 _ => unreachable!(n),
             };
