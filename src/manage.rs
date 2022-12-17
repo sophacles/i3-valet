@@ -16,12 +16,12 @@ pub fn is_shaped_right(conn: &mut I3Connection) -> Result<(), String> {
     for n in ws.preorder() {
         print!("{} ", fmt.format(&n));
     }
-    print!("\n");
+    println!();
     for n in ws.postorder() {
         print!("{} ", fmt.format(&n));
     }
     i3_command(&format!("[con_id={}] split horizontal", ws.id), conn)?;
-    print!("\n");
+    println!();
     Ok(())
 }
 

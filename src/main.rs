@@ -28,7 +28,7 @@ fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<
     for subcmd in e.binding.command.split(';') {
         print!("Processing: {} ... ", subcmd);
         let mut args: Vec<&str> = subcmd.split_whitespace().collect();
-        if args.len() == 0 {
+        if args.is_empty() {
             println!("Skipping!");
             continue;
         }
@@ -60,7 +60,7 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     for evt in listener.listen() {
         if let Err(res) = match evt.map_err(|_| "Connection died, i3 is most likey termnating")? {
             Event::BindingEvent(e) => handle_binding_event(e, command_conn),
-            _ => unreachable!("Can't happen, but here we are"),
+            _ => unreachable!("{}", "Can't happen, but here we are"),
         } {
             warn!("Encountered Error in listener: {}", res);
         }
@@ -170,7 +170,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 "tree" => info::print_ws(conn, &info::STD),
                 "rects" => info::print_disp(conn, &info::RECT),
                 "window" => info::print_window(conn, &info::WINDOW),
-                _ => unreachable!("stupid possible_values failed"),
+                _ => unreachable!("{}", "stupid possible_values failed"),
             }
         }
         Some("workspace") => {
@@ -178,7 +178,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
             match m.value_of("target").unwrap() {
                 "alloc" => alloc_workspace(conn),
                 "move-new" => move_to_new_ws(conn),
-                _ => unreachable!("stupid possible_values failed"),
+                _ => unreachable!("{}", "stupid possible_values failed"),
             }
         }
         Some("output") => {
@@ -190,13 +190,13 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 "move-ws" => (output::workspace_to_next, output::workspace_to_prev),
                 "move-win" => (output::window_to_next, output::window_to_prev),
                 "" => return Err(format!(" no args for output\n\n{}", m.usage())),
-                _ => unreachable!(n),
+                _ => unreachable!("{}", n),
             };
             let m = mm.unwrap();
             match m.value_of("target").unwrap() {
                 "next" => funcs.0(conn),
                 "prev" => funcs.1(conn),
-                _ => unreachable!("stupid possible_values failed"),
+                _ => unreachable!("{}", "stupid possible_values failed"),
             }
         }
         Some("layout") => {
@@ -214,7 +214,7 @@ fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
                 _ => unreachable!("bah"),
             }
         }
-        Some("listen") => Err(format!("Cannot dispatch listen: cli command only.")),
+        Some("listen") => Err("Cannot dispatch listen: cli command only.".to_string()),
         None => info::print_ws(conn, &info::STD),
         Some(f) => Err(format!("Unknown command: {}", f)),
     }
@@ -231,7 +231,7 @@ fn main() {
         Some("listen") => listener(&mut conn),
         _ => dispatch(parsed, &mut conn),
     } {
-        eprint!("Error running command: {}\n", res);
+        eprintln!("Error running command: {}", res);
         std::process::exit(1);
     }
     println!("Goodbye?!");

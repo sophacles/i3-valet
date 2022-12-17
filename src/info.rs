@@ -118,29 +118,31 @@ impl StepFormatter {
         }
 
         if self.name {
-            out.push(format!(
-                "{}",
-                s.n.name.as_ref().unwrap_or(&String::from("None"))
-            ));
+            out.push(
+                s.n.name
+                    .as_ref()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| String::from("None")),
+            );
         }
 
         if self.id {
             if self.short_id {
                 let s = format!("{}", s.n.id);
                 let last = &s[s.len() - 5..];
-                out.push(format!("{}", last));
+                out.push(last.to_string());
             } else {
-                out.push(format!("{}", s.n.id));
+                out.push(s.n.id.to_string());
             }
         }
         if self.focus {
-            out.push(format!(
-                "{}",
+            out.push(
                 match s.n.focused {
                     true => "F",
                     false => "U",
                 }
-            ));
+                .to_string(),
+            );
         }
         if self.layout {
             out.push(format!("{:?}", s.n.layout));
@@ -149,7 +151,7 @@ impl StepFormatter {
             out.push(format!("{:?}", s.n.rect));
         }
         if self.marks {
-            out.push(format!("{}", s.n.marks.join(",")));
+            out.push(s.n.marks.join(","));
         }
         if self.floating {
             out.push(format!("{:.1}", s.n.is_floating()));
@@ -159,6 +161,12 @@ impl StepFormatter {
         }
 
         out.join(" ")
+    }
+}
+
+impl Default for StepFormatter {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

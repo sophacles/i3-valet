@@ -37,19 +37,17 @@ fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
 }
 
 pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<(), String> {
-    loop {
-        //crate::info::print_ws(conn, &info::STD);
-        let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
-        let ws = node
-            .get_current_workspace()
-            .expect("No current workspace!?");
-        for (candidate, to) in find_candidate(ws) {
-            let cmd = format!(
-                "[con_id={}] mark i3v; [con_id={}] move container to mark i3v; unmark i3v",
-                to, candidate.id
-            );
-            i3_command(&cmd, conn)?;
-        }
-        return Ok(());
+    //crate::info::print_ws(conn, &info::STD);
+    let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+    let ws = node
+        .get_current_workspace()
+        .expect("No current workspace!?");
+    for (candidate, to) in find_candidate(ws) {
+        let cmd = format!(
+            "[con_id={}] mark i3v; [con_id={}] move container to mark i3v; unmark i3v",
+            to, candidate.id
+        );
+        i3_command(&cmd, conn)?;
     }
+    Ok(())
 }

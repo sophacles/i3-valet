@@ -86,7 +86,7 @@ pub enum Move {
 
 impl Move {
     fn new(cur: &usize, last: &usize) -> Move {
-        match cur.cmp(&last) {
+        match cur.cmp(last) {
             Ordering::Greater => Move::Down,
             Ordering::Equal => Move::Sibling,
             Ordering::Less => Move::Up,
