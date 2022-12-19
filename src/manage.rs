@@ -1,34 +1,7 @@
 use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::{
-    ext::{i3_command, NodeSearch},
-    info,
-};
-
-pub fn is_shaped_right(conn: &mut I3Connection) -> Result<(), String> {
-    println!("Hello manage!");
-    info::print_ws(conn, &info::STD)?;
-    let node = conn.get_tree().map_err(|_| "get_tree 1")?;
-    let ws = node.get_current_workspace().ok_or("workspace 2")?;
-    let mut fmt = info::StepFormatter::new();
-    let fmt = fmt.show_indent(false).set("id");
-
-    for n in ws.preorder() {
-        print!("{} ", fmt.format(&n));
-    }
-    println!();
-    for n in ws.postorder() {
-        print!("{} ", fmt.format(&n));
-    }
-    i3_command(&format!("[con_id={}] split horizontal", ws.id), conn)?;
-    println!();
-    Ok(())
-}
-
-pub fn shape(conn: &mut I3Connection) -> Result<(), String> {
-    swap_main(conn)
-}
+use crate::ext::{i3_command, NodeSearch};
 
 fn mark_name(wsname: &str, name: &str) -> String {
     format!("{}_{}", wsname, name)
