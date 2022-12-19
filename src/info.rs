@@ -3,6 +3,8 @@ use i3ipc::{reply::Node, I3Connection};
 
 use crate::ext::{NodeExt, NodeSearch, Step};
 
+use lazy_static::lazy_static;
+
 lazy_static! {
     pub static ref STD: StepFormatter = {
         let mut fmt = StepFormatter::new();

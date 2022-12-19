@@ -7,7 +7,13 @@ use i3ipc::{
     I3Connection, I3EventListener, Subscription,
 };
 
-use i3_valet::{collapse, floats, info, manage, output, workspace};
+pub mod collapse;
+pub mod ext;
+pub mod floats;
+pub mod info;
+pub mod manage;
+pub mod output;
+pub mod workspace;
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
