@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use i3ipc::I3Connection;
 
 use crate::ext::i3_command;
@@ -37,4 +38,17 @@ pub fn move_to_new_ws(conn: &mut I3Connection) -> Result<(), String> {
     let ws = next_free_workspace(conn)?;
     let cmd = format!("move container to workspace {}; workspace {}", ws, ws);
     i3_command(&cmd, conn)
+}
+
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum WorkspaceTarget {
+    Alloc,
+    MoveNew,
+}
+
+pub fn run(target: WorkspaceTarget, conn: &mut I3Connection) -> Result<(), String> {
+    match target {
+        WorkspaceTarget::Alloc => alloc_workspace(conn),
+        WorkspaceTarget::MoveNew => move_to_new_ws(conn),
+    }
 }

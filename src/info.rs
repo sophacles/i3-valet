@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
 use crate::ext::{NodeExt, NodeSearch, Step};
@@ -204,4 +205,19 @@ pub fn print_disp(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), St
     let node = conn.get_tree().expect("get_tree 1");
     let d = node.get_current_output().expect("workspace 2");
     pretty_print(d, fmt)
+}
+
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum PrintTarget {
+    Tree,
+    Rects,
+    Window,
+}
+
+pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<(), String> {
+    match target {
+        PrintTarget::Tree => print_ws(conn, &STD),
+        PrintTarget::Rects => print_disp(conn, &RECT),
+        PrintTarget::Window => print_window(conn, &WINDOW),
+    }
 }

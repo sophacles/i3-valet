@@ -7,14 +7,7 @@ use i3ipc::{
     I3Connection, I3EventListener, Subscription,
 };
 
-use i3_valet::{
-    collapse::clean_current_workspace,
-    floats::{teleport_float, Loc, Positioning},
-    info,
-    manage::{focus_main, make_main, swap_main},
-    output,
-    workspace::{alloc_workspace, move_to_new_ws},
-};
+use i3_valet::{collapse, floats, info, manage, output, workspace};
 
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
@@ -60,45 +53,22 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(ValueEnum, Clone, Debug)]
-enum OutputArgs {
-    Next,
-    Prev,
-}
-
 #[derive(Subcommand, Debug)]
 enum OutputCmd {
     /// move workspace to a different output
-    MoveWs { arg: OutputArgs },
+    MoveWs { arg: output::Direction },
     /// move workspace to a different output
-    MoveWin { arg: OutputArgs },
+    MoveWin { arg: output::Direction },
     /// focus a different output
-    Focus { arg: OutputArgs },
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-enum PrintTarget {
-    Tree,
-    Rects,
-    Window,
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-enum WorkspaceTarget {
-    Alloc,
-    MoveNew,
-}
-
-#[derive(ValueEnum, Clone, Debug)]
-enum LayoutAction {
-    Set,
-    Swap,
-    Focus,
+    Focus {
+        #[arg(name = "direction")]
+        arg: output::Direction,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 enum LayoutCmd {
-    Main { action: LayoutAction },
+    Main { action: manage::LayoutAction },
 }
 
 #[derive(Subcommand, Debug)]
@@ -109,27 +79,27 @@ enum Sub {
     /// Move A floating window to anchor point
     Loc {
         /// Positioning of window.
-        how: Positioning,
+        how: floats::Positioning,
         /// Anchor point to position window
-        pos: Loc,
+        pos: floats::Loc,
     },
 
     ///Print window information
     Print {
         /// what to print
-        target: PrintTarget,
+        target: info::PrintTarget,
     },
 
     /// Workspace commands
     Workspace {
         /// what to do
-        target: WorkspaceTarget,
+        target: workspace::WorkspaceTarget,
     },
 
     /// Output commands
     Output {
-        #[command(subcommand)]
-        cmd: OutputCmd,
+        change: output::Change,
+        dir: output::Direction,
     },
 
     /// Movement within the layout
@@ -160,38 +130,14 @@ impl Sub {
     fn dispatch(&self, conn: &mut I3Connection) -> Result<(), String> {
         println!("Dispatching: {:?}", self);
         match self {
-            Sub::Fix => clean_current_workspace(conn),
+            Sub::Fix => collapse::clean_current_workspace(conn),
             Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
-            Sub::Loc { pos, how } => teleport_float(conn, *pos, *how),
-            Sub::Print { target } => match target {
-                PrintTarget::Tree => info::print_ws(conn, &info::STD),
-                PrintTarget::Rects => info::print_disp(conn, &info::RECT),
-                PrintTarget::Window => info::print_window(conn, &info::WINDOW),
-            },
-            Sub::Workspace { target } => match target {
-                WorkspaceTarget::Alloc => alloc_workspace(conn),
-                WorkspaceTarget::MoveNew => move_to_new_ws(conn),
-            },
-            Sub::Output { cmd } => match cmd {
-                OutputCmd::Focus { arg } => match arg {
-                    OutputArgs::Next => output::focus_next(conn),
-                    OutputArgs::Prev => output::focus_prev(conn),
-                },
-                OutputCmd::MoveWs { arg } => match arg {
-                    OutputArgs::Next => output::workspace_to_next(conn),
-                    OutputArgs::Prev => output::workspace_to_prev(conn),
-                },
-                OutputCmd::MoveWin { arg } => match arg {
-                    OutputArgs::Next => output::window_to_next(conn),
-                    OutputArgs::Prev => output::window_to_prev(conn),
-                },
-            },
+            Sub::Loc { pos, how } => floats::teleport_float(conn, *pos, *how),
+            Sub::Print { target } => info::run(*target, conn),
+            Sub::Workspace { target } => workspace::run(*target, conn),
+            Sub::Output { change, dir } => output::run(*change, *dir, conn),
             Sub::Layout { cmd } => match cmd {
-                LayoutCmd::Main { action } => match action {
-                    LayoutAction::Set => make_main(conn),
-                    LayoutAction::Swap => swap_main(conn),
-                    LayoutAction::Focus => focus_main(conn),
-                },
+                LayoutCmd::Main { action } => manage::run_main(*action, conn),
             },
         }
     }

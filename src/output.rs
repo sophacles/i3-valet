@@ -1,10 +1,25 @@
+use clap::ValueEnum;
 use i3ipc::I3Connection;
 
 use crate::ext::i3_command;
 
-enum Direction {
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum Direction {
     Next,
     Prev,
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy)]
+pub enum Change {
+    /// move workspace to a different output
+    #[value(name = "move-ws")]
+    MoveWs,
+    /// move workspace to a different output
+    #[value(name = "move-win")]
+    MoveWin,
+    /// focus a different output
+    #[value(name = "focus")]
+    Focus,
 }
 
 // TODO: clean me up
@@ -55,44 +70,31 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
     Err("There's no output to select?".to_owned())
 }
 
-pub fn focus_next(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Next, conn)?;
+pub fn focus(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(dir, conn)?;
 
     let cmd = format!("focus output {}", target);
     i3_command(&cmd, conn)
 }
 
-pub fn focus_prev(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Prev, conn)?;
-
-    let cmd = format!("focus output {}", target);
-    i3_command(&cmd, conn)
-}
-
-pub fn workspace_to_next(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Next, conn)?;
+pub fn workspace(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(dir, conn)?;
 
     let cmd = format!("move workspace to output {}", target);
     i3_command(&cmd, conn)
 }
 
-pub fn workspace_to_prev(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Prev, conn)?;
-
-    let cmd = format!("move workspace to output {}", target);
-    i3_command(&cmd, conn)
-}
-
-pub fn window_to_next(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Next, conn)?;
+pub fn window(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
+    let target = neighbor(dir, conn)?;
 
     let cmd = format!("move window to output {}", target);
     i3_command(&cmd, conn)
 }
 
-pub fn window_to_prev(conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(Direction::Prev, conn)?;
-
-    let cmd = format!("move window to output {}", target);
-    i3_command(&cmd, conn)
+pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
+    match change {
+        Change::Focus => focus(dir, conn),
+        Change::MoveWs => workspace(dir, conn),
+        Change::MoveWin => window(dir, conn),
+    }
 }

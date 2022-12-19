@@ -1,3 +1,4 @@
+use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
 use crate::{
@@ -113,4 +114,19 @@ pub fn focus_main(conn: &mut I3Connection) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum LayoutAction {
+    Set,
+    Swap,
+    Focus,
+}
+
+pub fn run_main(action: LayoutAction, conn: &mut I3Connection) -> Result<(), String> {
+    match action {
+        LayoutAction::Set => make_main(conn),
+        LayoutAction::Swap => swap_main(conn),
+        LayoutAction::Focus => focus_main(conn),
+    }
 }
