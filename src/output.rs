@@ -70,31 +70,13 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
     Err("There's no output to select?".to_owned())
 }
 
-pub fn focus(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(dir, conn)?;
-
-    let cmd = format!("focus output {}", target);
-    i3_command(&cmd, conn)
-}
-
-pub fn workspace(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(dir, conn)?;
-
-    let cmd = format!("move workspace to output {}", target);
-    i3_command(&cmd, conn)
-}
-
-pub fn window(dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
-    let target = neighbor(dir, conn)?;
-
-    let cmd = format!("move window to output {}", target);
-    i3_command(&cmd, conn)
-}
-
 pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
-    match change {
-        Change::Focus => focus(dir, conn),
-        Change::MoveWs => workspace(dir, conn),
-        Change::MoveWin => window(dir, conn),
-    }
+    let target = neighbor(dir, conn)?;
+
+    let cmd = match change {
+        Change::Focus => format!("focus output {}", target),
+        Change::MoveWs => format!("move workspace to output {}", target),
+        Change::MoveWin => format!("move window to output {}", target),
+    };
+    i3_command(&cmd, conn)
 }
