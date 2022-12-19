@@ -29,13 +29,11 @@ pub enum Positioning {
 //            x    y    w    h
 type Rect = (i32, i32, i32, i32);
 
-struct DisplayArea {
-    bounds: Rect,
-}
+struct DisplayArea(Rect);
 
 impl DisplayArea {
     pub fn from_node(node: &Node) -> Self {
-        DisplayArea { bounds: node.rect }
+        DisplayArea(node.rect)
     }
 
     pub fn display(tree: &Node) -> Option<Self> {
@@ -47,7 +45,7 @@ impl DisplayArea {
     }
 
     pub fn position_window(&self, window: Rect, to: Loc) -> (i32, i32) {
-        let (x, y, w, h) = self.bounds;
+        let (x, y, w, h) = self.0;
         let (.., ww, wh) = window;
         match to {
             Loc::NW => (x, y),

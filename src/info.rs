@@ -187,26 +187,6 @@ pub fn post_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     Ok(())
 }
 
-pub fn print_window(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
-    let node = conn.get_tree().expect("get_tree 1");
-    let ws = node.get_current_window().expect("workspace 2");
-    pretty_print(ws, fmt)
-}
-
-pub fn print_ws(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
-    let node = conn.get_tree().expect("get_tree 1");
-    let ws = node.get_current_workspace().expect("workspace 2");
-
-    println!("pre:");
-    pretty_print(ws, fmt)
-}
-
-pub fn print_disp(conn: &mut I3Connection, fmt: &StepFormatter) -> Result<(), String> {
-    let node = conn.get_tree().expect("get_tree 1");
-    let d = node.get_current_output().expect("workspace 2");
-    pretty_print(d, fmt)
-}
-
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum PrintTarget {
     Tree,
@@ -215,9 +195,12 @@ pub enum PrintTarget {
 }
 
 pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<(), String> {
-    match target {
-        PrintTarget::Tree => print_ws(conn, &STD),
-        PrintTarget::Rects => print_disp(conn, &RECT),
-        PrintTarget::Window => print_window(conn, &WINDOW),
-    }
+    let node = conn.get_tree().expect("get_tree 1");
+    let (to_print, fmt) = match target {
+        PrintTarget::Tree => (node.get_current_workspace().expect("workspace 2"), &*STD),
+        PrintTarget::Rects => (node.get_current_output().expect("workspace 2"), &*RECT),
+        PrintTarget::Window => (node.get_current_window().expect("workspace 2"), &*WINDOW),
+    };
+
+    pretty_print(to_print, fmt)
 }
