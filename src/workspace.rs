@@ -28,18 +28,6 @@ pub fn next_free_workspace(conn: &mut I3Connection) -> Result<i32, String> {
     Ok(prev + 1)
 }
 
-pub fn alloc_workspace(conn: &mut I3Connection) -> Result<(), String> {
-    let ws = next_free_workspace(conn)?;
-    let cmd = format!("workspace {}", ws);
-    i3_command(&cmd, conn)
-}
-
-pub fn move_to_new_ws(conn: &mut I3Connection) -> Result<(), String> {
-    let ws = next_free_workspace(conn)?;
-    let cmd = format!("move container to workspace {}; workspace {}", ws, ws);
-    i3_command(&cmd, conn)
-}
-
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum WorkspaceTarget {
     Alloc,
@@ -47,8 +35,10 @@ pub enum WorkspaceTarget {
 }
 
 pub fn run(target: WorkspaceTarget, conn: &mut I3Connection) -> Result<(), String> {
-    match target {
-        WorkspaceTarget::Alloc => alloc_workspace(conn),
-        WorkspaceTarget::MoveNew => move_to_new_ws(conn),
-    }
+    let ws = next_free_workspace(conn)?;
+    let cmd = match target {
+        WorkspaceTarget::Alloc => format!("workspace {}", ws),
+        WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
+    };
+    i3_command(&cmd, conn)
 }
