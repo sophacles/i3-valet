@@ -1,7 +1,7 @@
 use log::*;
 
 //use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use i3ipc::{
     event::{BindingEventInfo, Event},
     I3Connection, I3EventListener, Subscription,
@@ -51,19 +51,6 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-#[derive(Subcommand, Debug)]
-enum OutputCmd {
-    /// move workspace to a different output
-    MoveWs { arg: output::Direction },
-    /// move workspace to a different output
-    MoveWin { arg: output::Direction },
-    /// focus a different output
-    Focus {
-        #[arg(name = "direction")]
-        arg: output::Direction,
-    },
 }
 
 #[derive(Subcommand, Debug)]
