@@ -2,10 +2,10 @@
 name = "i3-valet"
 version = "0.1.0"
 authors = ["Erich Heine <sophacles@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-clap = "2.33.0"
+clap = { version = "4", features = ["derive"] }
 log = "0.4.6"
 env_logger = "0.6.1"
 #i3ipc = { version = "0.10.1", features = ["i3-next"] }

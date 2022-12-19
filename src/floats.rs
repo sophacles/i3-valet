@@ -1,55 +1,31 @@
-use std::str::FromStr;
-
+use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
 use crate::ext::{i3_command, NodeSearch};
 
-#[derive(Debug)]
+#[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Loc {
     NW,
     NE,
     SW,
     SE,
     Top,
+    #[value(name = "bot")]
     Bottom,
     Left,
     Right,
 }
 
+#[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Positioning {
+    /// relative to the output
+    #[value(name = "abs")]
     Absolute,
+    /// relative to the content area
+    #[value(name = "rel")]
     Relative,
 }
 
-impl FromStr for Positioning {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "abs" => Ok(Positioning::Absolute),
-            "rel" => Ok(Positioning::Relative),
-            _ => Err(format!("Not a valid Position: {}", s)),
-        }
-    }
-}
-
-impl FromStr for Loc {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "nw" => Ok(Loc::NW),
-            "ne" => Ok(Loc::NE),
-            "sw" => Ok(Loc::SW),
-            "se" => Ok(Loc::SE),
-            "top" => Ok(Loc::Top),
-            "bot" => Ok(Loc::Bottom),
-            "left" => Ok(Loc::Left),
-            "right" => Ok(Loc::Right),
-            _ => Err(format!("Not a valid Loc: {}", s)),
-        }
-    }
-}
 //            x    y    w    h
 type Rect = (i32, i32, i32, i32);
 

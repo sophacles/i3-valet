@@ -1,12 +1,7 @@
-#[macro_use]
-extern crate clap;
-extern crate env_logger;
-extern crate i3ipc;
+use log::*;
 
-#[macro_use]
-extern crate log;
-
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+//use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use i3ipc::{
     event::{BindingEventInfo, Event},
     I3Connection, I3EventListener, Subscription,
@@ -35,12 +30,9 @@ fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<
         match args.remove(0) {
             "nop" => {
                 println!("Handling!");
-                let cl = args.join(" ");
-                let m = make_args()
-                    .setting(AppSettings::NoBinaryName)
-                    .get_matches_from_safe(args.iter().take_while(|x| **x != ";"))
-                    .map_err(|e| format!("Cannot parse: {} => {}", cl, e.message))?;
-                dispatch(m, conn)?
+                let app = ReceivedCmd::try_parse_from(args)
+                    .map_err(|e| format!("Error parsing command: {:?}", e))?;
+                app.cmd.dispatch(conn)?
             }
             _ => {
                 println!("Skipping!");
@@ -68,155 +60,140 @@ fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
     Ok(())
 }
 
-fn make_args<'a, 'b>() -> App<'a, 'b> {
-    let output_args = Arg::with_name("target")
-        .help("where to go")
-        .required(true)
-        .possible_values(&["next", "prev"]);
-    App::new("i3-valet")
-        .version("0.1")
-        .author("sophacles@gmail.com")
-        .about("tend to your windows")
-        .subcommand(SubCommand::with_name("fix").about("clean up the window tree"))
-        .subcommand(
-            SubCommand::with_name("loc")
-            .about("Move a floating window to anchor point")
-                .arg(
-                    Arg::with_name("how")
-                        .help("Positioning of window.\n'abs' is relative to the output\n'rel' is relative to the content area\n")
-                        .required(true)
-                        .possible_values(&["abs", "rel"]),
-                )
-                .arg(
-                    Arg::with_name("where")
-                        .help("Anchor point to position window\n")
-                        .required(true)
-                        .possible_values(&["nw", "ne", "sw", "se", "bot", "top", "left", "right"]),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("print")
-            .about("Print window information")
-            .arg(
-                Arg::with_name("target")
-                    .help("what to print")
-                    .required(true)
-                    .possible_values(&["tree", "rects", "window"]),
-            ),
-        )
-        .subcommand(
-            SubCommand::with_name("workspace")
-            .about("Workspace commands")
-            .arg(
-                // TODO: replace me with subsubcommands
-                Arg::with_name("target")
-                    .help("what do do")
-                    .required(true)
-                    .possible_values(&["alloc", "move-new"]),
-            ),
-        )
-        .subcommand(
-            SubCommand::with_name("output")
-            .about("Output commands")
-            // TODO: replace me with subsubcommands
-            .subcommand(
-                SubCommand::with_name("move-ws")
-                .about("move workspace to a different output")
-                .arg(output_args.clone()),
-            )
-            .subcommand(
-                SubCommand::with_name("move-win")
-                .about("move workspace to a different output")
-                .arg(output_args.clone()),
-            )
-            .subcommand(
-                SubCommand::with_name("focus")
-                .about("focus a different output")
-                .arg(output_args.clone()),
-            )
-        )
-        .subcommand(
-            SubCommand::with_name("layout")
-            .about("Layout management commands")
-            .subcommand(
-                SubCommand::with_name("main")
-                .about("Commands related to main windows")
-                .arg(
-                    Arg::with_name("action")
-                    .help("Main window commands, set or swap with main")
-                    .required(true)
-                    .possible_values(&["set", "swap", "focus"])
-                )
-            )
-        )
-        .subcommand(SubCommand::with_name("listen").about("connect to i3 socket and wait for events"))
+#[derive(ValueEnum, Clone, Debug)]
+enum OutputArgs {
+    Next,
+    Prev,
 }
 
-// TODO: make this happy with all the options and stuff
-fn dispatch(m: ArgMatches, conn: &mut I3Connection) -> Result<(), String> {
-    match m.subcommand_name() {
-        Some("fix") => clean_current_workspace(conn),
-        Some("loc") => {
-            let m = m.subcommand.unwrap().matches;
-            teleport_float(
-                conn,
-                value_t!(m.value_of("where"), Loc).expect("possible values broke!"),
-                value_t!(m.value_of("how"), Positioning).expect("possible_values broke!"),
-            )
-        }
-        Some("print") => {
-            let m = m.subcommand.unwrap().matches;
-            match m.value_of("target").unwrap() {
-                "tree" => info::print_ws(conn, &info::STD),
-                "rects" => info::print_disp(conn, &info::RECT),
-                "window" => info::print_window(conn, &info::WINDOW),
-                _ => unreachable!("{}", "stupid possible_values failed"),
-            }
-        }
-        Some("workspace") => {
-            let m = m.subcommand.unwrap().matches;
-            match m.value_of("target").unwrap() {
-                "alloc" => alloc_workspace(conn),
-                "move-new" => move_to_new_ws(conn),
-                _ => unreachable!("{}", "stupid possible_values failed"),
-            }
-        }
-        Some("output") => {
-            let m = m.subcommand.unwrap().matches;
-            let (n, mm) = m.subcommand();
-            //let m = m.ok_or(String::from("Must provide a subcommand to Output"))?;
-            let funcs: (fn(_) -> _, fn(_) -> _) = match n {
-                "focus" => (output::focus_next, output::focus_prev),
-                "move-ws" => (output::workspace_to_next, output::workspace_to_prev),
-                "move-win" => (output::window_to_next, output::window_to_prev),
-                "" => return Err(format!(" no args for output\n\n{}", m.usage())),
-                _ => unreachable!("{}", n),
-            };
-            let m = mm.unwrap();
-            match m.value_of("target").unwrap() {
-                "next" => funcs.0(conn),
-                "prev" => funcs.1(conn),
-                _ => unreachable!("{}", "stupid possible_values failed"),
-            }
-        }
-        Some("layout") => {
-            let m = m.subcommand.unwrap().matches;
-            let (name, submatches) = m.subcommand();
-            println!("Name is: {}, matches is: {:?}", name, submatches);
-            match name {
-                "main" => match submatches.unwrap().value_of("action").unwrap() {
-                    "set" => make_main(conn),
-                    "swap" => swap_main(conn),
-                    "focus" => focus_main(conn),
-                    _ => unreachable!("um, should have set val"),
+#[derive(Subcommand, Debug)]
+enum OutputCmd {
+    /// move workspace to a different output
+    MoveWs { arg: OutputArgs },
+    /// move workspace to a different output
+    MoveWin { arg: OutputArgs },
+    /// focus a different output
+    Focus { arg: OutputArgs },
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum PrintTarget {
+    Tree,
+    Rects,
+    Window,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum WorkspaceTarget {
+    Alloc,
+    MoveNew,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+enum LayoutAction {
+    Set,
+    Swap,
+    Focus,
+}
+
+#[derive(Subcommand, Debug)]
+enum LayoutCmd {
+    Main { action: LayoutAction },
+}
+
+#[derive(Subcommand, Debug)]
+enum Sub {
+    /// clean up the window tree
+    Fix,
+
+    /// Move A floating window to anchor point
+    Loc {
+        /// Positioning of window.
+        how: Positioning,
+        /// Anchor point to position window
+        pos: Loc,
+    },
+
+    ///Print window information
+    Print {
+        /// what to print
+        target: PrintTarget,
+    },
+
+    /// Workspace commands
+    Workspace {
+        /// what to do
+        target: WorkspaceTarget,
+    },
+
+    /// Output commands
+    Output {
+        #[command(subcommand)]
+        cmd: OutputCmd,
+    },
+
+    /// Movement within the layout
+    Layout {
+        #[command(subcommand)]
+        cmd: LayoutCmd,
+    },
+
+    /// connect to i3 socket and wait for events
+    Listen,
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct App {
+    #[command(subcommand)]
+    cmd: Sub,
+}
+
+#[derive(Parser, Debug)]
+#[command(no_binary_name(true), author, version, about, long_about = None)]
+struct ReceivedCmd {
+    #[command(subcommand)]
+    cmd: Sub,
+}
+
+impl Sub {
+    fn dispatch(&self, conn: &mut I3Connection) -> Result<(), String> {
+        println!("Dispatching: {:?}", self);
+        match self {
+            Sub::Fix => clean_current_workspace(conn),
+            Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
+            Sub::Loc { pos, how } => teleport_float(conn, *pos, *how),
+            Sub::Print { target } => match target {
+                PrintTarget::Tree => info::print_ws(conn, &info::STD),
+                PrintTarget::Rects => info::print_disp(conn, &info::RECT),
+                PrintTarget::Window => info::print_window(conn, &info::WINDOW),
+            },
+            Sub::Workspace { target } => match target {
+                WorkspaceTarget::Alloc => alloc_workspace(conn),
+                WorkspaceTarget::MoveNew => move_to_new_ws(conn),
+            },
+            Sub::Output { cmd } => match cmd {
+                OutputCmd::Focus { arg } => match arg {
+                    OutputArgs::Next => output::focus_next(conn),
+                    OutputArgs::Prev => output::focus_prev(conn),
                 },
-                "" => return Err(format!("Must choose subcommand from:\n\n{}", m.usage())),
-                _ => unreachable!("bah"),
-            }
+                OutputCmd::MoveWs { arg } => match arg {
+                    OutputArgs::Next => output::workspace_to_next(conn),
+                    OutputArgs::Prev => output::workspace_to_prev(conn),
+                },
+                OutputCmd::MoveWin { arg } => match arg {
+                    OutputArgs::Next => output::window_to_next(conn),
+                    OutputArgs::Prev => output::window_to_prev(conn),
+                },
+            },
+            Sub::Layout { cmd } => match cmd {
+                LayoutCmd::Main { action } => match action {
+                    LayoutAction::Set => make_main(conn),
+                    LayoutAction::Swap => swap_main(conn),
+                    LayoutAction::Focus => focus_main(conn),
+                },
+            },
         }
-        Some("listen") => Err("Cannot dispatch listen: cli command only.".to_string()),
-        None => info::print_ws(conn, &info::STD),
-        Some(f) => Err(format!("Unknown command: {}", f)),
     }
 }
 
@@ -224,12 +201,11 @@ fn main() {
     env_logger::init();
 
     let mut conn = I3Connection::connect().expect("i3connect");
+    let app = App::parse();
 
-    let app = make_args();
-    let parsed = app.get_matches();
-    if let Err(res) = match parsed.subcommand_name() {
-        Some("listen") => listener(&mut conn),
-        _ => dispatch(parsed, &mut conn),
+    if let Err(res) = match app.cmd {
+        Sub::Listen => listener(&mut conn),
+        _ => app.cmd.dispatch(&mut conn),
     } {
         eprintln!("Error running command: {}", res);
         std::process::exit(1);
