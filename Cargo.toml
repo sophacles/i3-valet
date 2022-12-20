@@ -9,5 +9,8 @@ clap = { version = "4", features = ["derive"] }
 log = "0.4.6"
 env_logger = "0.6.1"
 #i3ipc = { version = "0.10.1", features = ["i3-next"] }
-i3ipc = { path = "/home/sophacles/src/i3ipc-rs", features = ["i3-next"] }
+#i3ipc = { path = "/home/sophacles/src/i3ipc-rs", features = ["i3-next"] }
 lazy_static = "1.4.0"
+tokio = "1.23.0"
+tokio-i3ipc = "0.15.0"
+tokio-stream = "0.1.11"

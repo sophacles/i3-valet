@@ -1,11 +1,18 @@
-use log::*;
+use std::io;
 
+use tokio_i3ipc::{
+    event::{Event, Subscribe},
+    I3,
+};
+use tokio_stream::StreamExt;
+
+use log::*;
 //use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use clap::{Parser, Subcommand};
-use i3ipc::{
-    event::{BindingEventInfo, Event},
-    I3Connection, I3EventListener, Subscription,
-};
+//use i3ipc::{
+//    event::{BindingEventInfo, Event},
+//    I3Connection, I3EventListener, Subscription,
+//};
 
 pub mod collapse;
 pub mod ext;
@@ -178,6 +185,32 @@ fn listener() -> Result<(), String> {
             if let Err(e) = handle_binding_event(b, &mut command_conn) {
                 warn!("Encountered Error in listener: {}", e);
             }
+        }
+    }
+    Ok(())
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> io::Result<()> {
+    let mut i3 = I3::connect().await?;
+    // this type can be inferred, here is written explicitly:
+    //let worksp: reply::Workspaces = i3.get_workspaces().await?;
+    //println!("{:#?}", worksp);
+
+    let resp = i3.subscribe([Subscribe::Binding]).await?;
+
+    println!("{:#?}", resp);
+    let mut listener = i3.listen();
+    while let Some(event) = listener.next().await {
+        match event? {
+            Event::Workspace(ev) => println!("workspace change event {:?}", ev),
+            Event::Window(ev) => println!("window event {:?}", ev),
+            Event::Output(ev) => println!("output event {:?}", ev),
+            Event::Mode(ev) => println!("mode event {:?}", ev),
+            Event::BarConfig(ev) => println!("bar config update {:?}", ev),
+            Event::Binding(ev) => println!("binding event {:?}", ev),
+            Event::Shutdown(ev) => println!("shutdown event {:?}", ev),
+            Event::Tick(ev) => println!("tick event {:?}", ev),
         }
     }
     Ok(())
