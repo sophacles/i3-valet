@@ -70,7 +70,7 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
     Err("There's no output to select?".to_owned())
 }
 
-pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<(), String> {
+pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let target = neighbor(dir, conn)?;
 
     let cmd = match change {
@@ -78,5 +78,5 @@ pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<()
         Change::MoveWs => format!("move workspace to output {}", target),
         Change::MoveWin => format!("move window to output {}", target),
     };
-    i3_command(&cmd, conn)
+    Ok(vec![cmd])
 }

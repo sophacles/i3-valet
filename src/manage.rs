@@ -7,36 +7,36 @@ fn mark_name(wsname: &str, name: &str) -> String {
     format!("{}_{}", wsname, name)
 }
 
-fn unmark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<(), String> {
+fn unmark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<String, String> {
     let cmd = match target {
         Some(n) => format!("[con_id={}] unmark {}", n.id, mark),
         None => format!("unmark {}", mark),
     };
-    i3_command(&cmd, conn)
+    Ok(cmd)
 }
 
-fn mark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<(), String> {
+fn mark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<String, String> {
     let cmd = match target {
         Some(n) => format!("[con_id={}] mark --add {}", n.id, mark),
         None => format!("mark --add {}", mark),
     };
-    i3_command(&cmd, conn)
+    Ok(cmd)
 }
 
-fn swap_mark(mark: &str, conn: &mut I3Connection) -> Result<(), String> {
-    i3_command(&format!("swap container with mark {}", mark), conn)
+fn swap_mark(mark: &str, conn: &mut I3Connection) -> Result<String, String> {
+    Ok(format!("swap container with mark {}", mark))
 }
 
-pub fn make_main(conn: &mut I3Connection) -> Result<(), String> {
+pub fn make_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let node = conn.get_tree().map_err(|_| "get_tree 1")?;
     let ws = node
         .get_current_workspace()
         .ok_or("No current workspace?!")?;
 
-    mark(None, &mark_name(ws.name.as_ref().unwrap(), "main"), conn)
+    mark(None, &mark_name(ws.name.as_ref().unwrap(), "main"), conn).map(|s| vec![s])
 }
 
-pub fn swap_main(conn: &mut I3Connection) -> Result<(), String> {
+pub fn swap_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let node = conn.get_tree().map_err(|_| "get_tree 1")?;
     let ws = node
         .get_current_workspace()
@@ -49,44 +49,47 @@ pub fn swap_main(conn: &mut I3Connection) -> Result<(), String> {
 
     let main = ws.find_mark(&main_mark).ok_or("No main, aborting")?;
 
+    let mut res = Vec::with_capacity(5);
     if cur_window.id == main.id {
         match ws.find_mark(&last_mark) {
             Some(n) => {
-                swap_mark(&last_mark, conn)?;
-                unmark(None, &last_mark, conn)?;
-                unmark(None, &main_mark, conn)?;
-                mark(Some(n), &main_mark, conn)?;
-                mark(Some(cur_window), &last_mark, conn)?;
-                return Ok(());
+                res.push(swap_mark(&last_mark, conn)?);
+                res.push(unmark(None, &last_mark, conn)?);
+                res.push(unmark(None, &main_mark, conn)?);
+                res.push(mark(Some(n), &main_mark, conn)?);
+                res.push(mark(Some(cur_window), &last_mark, conn)?);
             }
             None => {
                 return Err("No last window, aborting".to_string());
             }
         }
     } else {
-        swap_mark(&main_mark, conn)?;
-        unmark(None, &last_mark, conn)?;
-        unmark(None, &main_mark, conn)?;
-        mark(Some(cur_window), &main_mark, conn)?;
-        mark(Some(main), &last_mark, conn)?;
+        res.push(swap_mark(&main_mark, conn)?);
+        res.push(unmark(None, &last_mark, conn)?);
+        res.push(unmark(None, &main_mark, conn)?);
+        res.push(mark(Some(cur_window), &main_mark, conn)?);
+        res.push(mark(Some(main), &last_mark, conn)?);
     }
 
-    Ok(())
+    Ok(res)
 }
 
-pub fn focus_main(conn: &mut I3Connection) -> Result<(), String> {
+pub fn focus_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let wslist = conn
         .get_workspaces()
         .map_err(|_| "Cannot get workspace list!")?;
-    for ws in wslist.workspaces {
-        if ws.focused {
-            i3_command(
-                &format!("[con_mark={}] focus", mark_name(&ws.name, "main")),
-                conn,
-            )?;
-        }
-    }
-    Ok(())
+
+    Ok(wslist
+        .workspaces
+        .iter()
+        .filter_map(|ws| {
+            if ws.focused {
+                Some(format!("[con_mark={}] focus", mark_name(&ws.name, "main")))
+            } else {
+                None
+            }
+        })
+        .collect())
 }
 
 #[derive(ValueEnum, Clone, Debug, Copy)]
@@ -96,7 +99,7 @@ pub enum LayoutAction {
     Focus,
 }
 
-pub fn run_main(action: LayoutAction, conn: &mut I3Connection) -> Result<(), String> {
+pub fn run_main(action: LayoutAction, conn: &mut I3Connection) -> Result<Vec<String>, String> {
     match action {
         LayoutAction::Set => make_main(conn),
         LayoutAction::Swap => swap_main(conn),

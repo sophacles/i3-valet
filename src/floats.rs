@@ -64,7 +64,11 @@ fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
     it.ok_or(format!("Couldn't find in tree: {}", op))
 }
 
-pub fn teleport_float(conn: &mut I3Connection, to: Loc, pos: Positioning) -> Result<(), String> {
+pub fn teleport_float(
+    conn: &mut I3Connection,
+    to: Loc,
+    pos: Positioning,
+) -> Result<Vec<String>, String> {
     println!("Teleport floating to: {:?}", to);
 
     let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
@@ -78,5 +82,5 @@ pub fn teleport_float(conn: &mut I3Connection, to: Loc, pos: Positioning) -> Res
     let (x, y) = current_display.position_window(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
-    i3_command(&cmd, conn)
+    return Ok(vec![cmd]);
 }

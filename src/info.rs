@@ -196,7 +196,7 @@ pub enum PrintTarget {
     Window,
 }
 
-pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<(), String> {
+pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let node = conn.get_tree().expect("get_tree 1");
     let (to_print, fmt) = match target {
         PrintTarget::Tree => (node.get_current_workspace().expect("workspace 2"), &*STD),
@@ -204,5 +204,5 @@ pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<(), String> {
         PrintTarget::Window => (node.get_current_window().expect("workspace 2"), &*WINDOW),
     };
 
-    pretty_print(to_print, fmt)
+    pretty_print(to_print, fmt).map(|_| Vec::new())
 }

@@ -34,11 +34,11 @@ pub enum WorkspaceTarget {
     MoveNew,
 }
 
-pub fn run(target: WorkspaceTarget, conn: &mut I3Connection) -> Result<(), String> {
+pub fn run(target: WorkspaceTarget, conn: &mut I3Connection) -> Result<Vec<String>, String> {
     let ws = next_free_workspace(conn)?;
     let cmd = match target {
         WorkspaceTarget::Alloc => format!("workspace {}", ws),
         WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
     };
-    i3_command(&cmd, conn)
+    Ok(vec![cmd])
 }

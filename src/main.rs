@@ -122,7 +122,7 @@ struct ReceivedCmd {
 impl Sub {
     fn dispatch(&self, conn: &mut I3Connection) -> Result<(), String> {
         println!("Dispatching: {:?}", self);
-        match self {
+        let cmds = match self {
             Sub::Fix => collapse::clean_current_workspace(conn),
             Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
             Sub::Loc { pos, how } => floats::teleport_float(conn, *pos, *how),
@@ -132,7 +132,12 @@ impl Sub {
             Sub::Layout { cmd } => match cmd {
                 LayoutCmd::Main { action } => manage::run_main(*action, conn),
             },
+        }?;
+
+        for cmd in cmds {
+            ext::i3_command(&cmd, conn)?;
         }
+        Ok(())
     }
 }
 
