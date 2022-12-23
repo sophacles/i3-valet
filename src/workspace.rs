@@ -1,8 +1,6 @@
 use clap::ValueEnum;
 use i3ipc::I3Connection;
 
-use crate::ext::i3_command;
-
 pub fn next_free_workspace(conn: &mut I3Connection) -> Result<i32, String> {
     let ws_reply = conn
         .get_workspaces()

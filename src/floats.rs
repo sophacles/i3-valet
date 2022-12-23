@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::{i3_command, NodeSearch};
+use crate::ext::NodeSearch;
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Loc {
@@ -82,5 +82,5 @@ pub fn teleport_float(
     let (x, y) = current_display.position_window(current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
-    return Ok(vec![cmd]);
+    Ok(vec![cmd])
 }

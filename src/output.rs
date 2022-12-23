@@ -1,8 +1,6 @@
 use clap::ValueEnum;
 use i3ipc::I3Connection;
 
-use crate::ext::i3_command;
-
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum Direction {
     Next,

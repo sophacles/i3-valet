@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::{i3_command, NodeSearch};
+use crate::ext::NodeSearch;
 
 fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
     let mut leaves_seen = HashSet::new();
