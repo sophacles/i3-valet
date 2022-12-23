@@ -15,50 +15,6 @@ pub mod manage;
 pub mod output;
 pub mod workspace;
 
-fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
-    debug!("Saw BindingEvent: {:#?}", e);
-    // TODO: this is certainly fragile
-    println!("Caught command: {}", e.binding.command);
-    for subcmd in e.binding.command.split(';') {
-        print!("Processing: {} ... ", subcmd);
-        let mut args: Vec<&str> = subcmd.split_whitespace().collect();
-        if args.is_empty() {
-            println!("Skipping!");
-            continue;
-        }
-        match args.remove(0) {
-            "nop" => {
-                println!("Handling!");
-                let app = ReceivedCmd::try_parse_from(args)
-                    .map_err(|e| format!("Error parsing command: {:?}", e))?;
-                app.cmd.dispatch(conn)?
-            }
-            _ => {
-                println!("Skipping!");
-                continue;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn listener(command_conn: &mut I3Connection) -> Result<(), String> {
-    let mut listener = I3EventListener::connect().unwrap();
-
-    let subs = [Subscription::Binding];
-    listener.subscribe(&subs).unwrap();
-
-    for evt in listener.listen() {
-        if let Err(res) = match evt.map_err(|_| "Connection died, i3 is most likey termnating")? {
-            Event::BindingEvent(e) => handle_binding_event(e, command_conn),
-            _ => unreachable!("{}", "Can't happen, but here we are"),
-        } {
-            warn!("Encountered Error in listener: {}", res);
-        }
-    }
-    Ok(())
-}
-
 #[derive(Subcommand, Debug)]
 enum LayoutCmd {
     Main { action: manage::LayoutAction },
@@ -170,15 +126,64 @@ impl Sub {
 fn main() {
     env_logger::init();
 
-    let mut conn = I3Connection::connect().expect("i3connect");
     let app = App::parse();
 
     if let Err(res) = match app.cmd {
-        Sub::Listen => listener(&mut conn),
-        _ => app.cmd.dispatch(&mut conn),
+        Sub::Listen => listener(),
+        _ => {
+            let mut conn = I3Connection::connect().expect("i3connect");
+            app.cmd.dispatch(&mut conn)
+        }
     } {
         eprintln!("Error running command: {}", res);
         std::process::exit(1);
     }
     println!("Goodbye?!");
+}
+
+fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
+    debug!("Saw BindingEvent: {:#?}", e);
+    // TODO: this is certainly fragile
+    println!("Caught command: {}", e.binding.command);
+    for subcmd in e.binding.command.split(';') {
+        print!("Processing: {} ... ", subcmd);
+        let mut args: Vec<&str> = subcmd.split_whitespace().collect();
+        if args.is_empty() {
+            println!("Skipping!");
+            continue;
+        }
+        match args.remove(0) {
+            "nop" => {
+                println!("Handling!");
+                let app = ReceivedCmd::try_parse_from(args)
+                    .map_err(|e| format!("Error parsing command: {:?}", e))?;
+                app.cmd.dispatch(conn)?
+            }
+            _ => {
+                println!("Skipping!");
+                continue;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn listener() -> Result<(), String> {
+    let mut listener = I3EventListener::connect().unwrap();
+
+    let subs = [Subscription::Binding];
+    listener.subscribe(&subs).unwrap();
+
+    for evt in listener.listen() {
+        if let Err(res) = match evt.map_err(|_| "Connection died, i3 is most likey termnating")? {
+            Event::BindingEvent(e) => {
+                let mut command_conn = I3Connection::connect().expect("i3connect");
+                handle_binding_event(e, &mut command_conn)
+            }
+            _ => unreachable!("{}", "Can't happen, but here we are"),
+        } {
+            warn!("Encountered Error in listener: {}", res);
+        }
+    }
+    Ok(())
 }
