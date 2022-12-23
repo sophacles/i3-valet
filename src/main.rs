@@ -123,14 +123,40 @@ impl Sub {
     fn dispatch(&self, conn: &mut I3Connection) -> Result<(), String> {
         println!("Dispatching: {:?}", self);
         let cmds = match self {
-            Sub::Fix => collapse::clean_current_workspace(conn),
+            Sub::Fix => {
+                let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+                collapse::clean_current_workspace(&tree)
+            }
             Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
-            Sub::Loc { pos, how } => floats::teleport_float(conn, *pos, *how),
-            Sub::Print { target } => info::run(*target, conn),
-            Sub::Workspace { target } => workspace::run(*target, conn),
-            Sub::Output { change, dir } => output::run(*change, *dir, conn),
+            Sub::Loc { pos, how } => {
+                let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+                floats::teleport_float(&tree, *pos, *how)
+            }
+            Sub::Print { target } => {
+                let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+                info::run(*target, &tree)
+            }
+            Sub::Workspace { target } => {
+                let mut workspaces = conn
+                    .get_workspaces()
+                    .map_err(|e| format!("Get workspaces: {:?}", e))?;
+                workspace::run(*target, &mut workspaces)
+            }
+            Sub::Output { change, dir } => {
+                let workspaces = conn
+                    .get_workspaces()
+                    .map_err(|e| format!("Get workspaces: {:?}", e))?;
+
+                let outputs = conn
+                    .get_outputs()
+                    .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
+                output::run(*change, *dir, &workspaces, &outputs)
+            }
             Sub::Layout { cmd } => match cmd {
-                LayoutCmd::Main { action } => manage::run_main(*action, conn),
+                LayoutCmd::Main { action } => {
+                    let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+                    manage::run_main(*action, &tree)
+                }
             },
         }?;
 

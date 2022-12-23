@@ -2,7 +2,7 @@ extern crate log;
 
 use std::collections::HashSet;
 
-use i3ipc::{reply::Node, I3Connection};
+use i3ipc::reply::Node;
 
 use crate::ext::NodeSearch;
 
@@ -36,10 +36,10 @@ fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
     res
 }
 
-pub fn clean_current_workspace(conn: &mut I3Connection) -> Result<Vec<String>, String> {
+pub fn clean_current_workspace(tree: &Node) -> Result<Vec<String>, String> {
     //crate::info::print_ws(conn, &info::STD);
-    let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
-    let ws = node
+    //let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+    let ws = tree
         .get_current_workspace()
         .expect("No current workspace!?");
     let mut res = Vec::new();

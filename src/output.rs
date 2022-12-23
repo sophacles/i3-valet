@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::I3Connection;
+use i3ipc::reply::{Outputs, Workspaces};
 
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum Direction {
@@ -21,28 +21,32 @@ pub enum Change {
 }
 
 // TODO: clean me up
-fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String> {
+fn neighbor(
+    which: Direction,
+    workspaces: &Workspaces,
+    outputs: &Outputs,
+) -> Result<String, String> {
     // find current workspace since that will
     // also tell us the current output
-    let ws_reply = conn
-        .get_workspaces()
-        .map_err(|e| format!("Get workspaces: {:?}", e))?;
+    //let ws_reply = conn
+    //  .get_workspaces()
+    //  .map_err(|e| format!("Get workspaces: {:?}", e))?;
 
-    let current_ws = ws_reply
+    let current_ws = workspaces
         .workspaces
-        .into_iter()
+        .iter()
         .find(|ws| ws.focused)
         .ok_or("No focused workspace?")?;
 
-    let current_output = current_ws.output;
+    let current_output = current_ws.output.clone();
 
     // get the list of active output names.
     // active seems to mean "can display things"
-    let output_list = conn
-        .get_outputs()
-        .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
+    //let output_list = conn
+    //    .get_outputs()
+    //    .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
 
-    let mut output_list: Vec<String> = output_list
+    let mut output_list: Vec<String> = outputs
         .outputs
         .iter()
         .filter(|o| o.active)
@@ -68,8 +72,13 @@ fn neighbor(which: Direction, conn: &mut I3Connection) -> Result<String, String>
     Err("There's no output to select?".to_owned())
 }
 
-pub fn run(change: Change, dir: Direction, conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let target = neighbor(dir, conn)?;
+pub fn run(
+    change: Change,
+    dir: Direction,
+    workspaces: &Workspaces,
+    outputs: &Outputs,
+) -> Result<Vec<String>, String> {
+    let target = neighbor(dir, workspaces, outputs)?;
 
     let cmd = match change {
         Change::Focus => format!("focus output {}", target),

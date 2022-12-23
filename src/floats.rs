@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::{reply::Node, I3Connection};
+use i3ipc::reply::Node;
 
 use crate::ext::NodeSearch;
 
@@ -64,19 +64,15 @@ fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
     it.ok_or(format!("Couldn't find in tree: {}", op))
 }
 
-pub fn teleport_float(
-    conn: &mut I3Connection,
-    to: Loc,
-    pos: Positioning,
-) -> Result<Vec<String>, String> {
+pub fn teleport_float(tree: &Node, to: Loc, pos: Positioning) -> Result<Vec<String>, String> {
     println!("Teleport floating to: {:?}", to);
 
-    let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
+    //let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
     let current_window = okers(tree.get_current_window(), "current window")?;
 
     let current_display = match pos {
-        Positioning::Relative => okers(DisplayArea::content(&tree), "content")?,
-        Positioning::Absolute => okers(DisplayArea::display(&tree), "display")?,
+        Positioning::Relative => okers(DisplayArea::content(tree), "content")?,
+        Positioning::Absolute => okers(DisplayArea::display(tree), "display")?,
     };
 
     let (x, y) = current_display.position_window(current_window.rect, to);

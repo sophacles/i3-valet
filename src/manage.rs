@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::{reply::Node, I3Connection};
+use i3ipc::reply::Node;
 
 use crate::ext::NodeSearch;
 
@@ -27,18 +27,18 @@ fn swap_mark(mark: &str) -> Result<String, String> {
     Ok(format!("swap container with mark {}", mark))
 }
 
-pub fn make_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let node = conn.get_tree().map_err(|_| "get_tree 1")?;
-    let ws = node
+pub fn make_main(tree: &Node) -> Result<Vec<String>, String> {
+    //let node = conn.get_tree().map_err(|_| "get_tree 1")?;
+    let ws = tree
         .get_current_workspace()
         .ok_or("No current workspace?!")?;
 
     mark(None, &mark_name(ws.name.as_ref().unwrap(), "main")).map(|s| vec![s])
 }
 
-pub fn swap_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let node = conn.get_tree().map_err(|_| "get_tree 1")?;
-    let ws = node
+pub fn swap_main(tree: &Node) -> Result<Vec<String>, String> {
+    //let node = conn.get_tree().map_err(|_| "get_tree 1")?;
+    let ws = tree
         .get_current_workspace()
         .ok_or("No current workspace?!")?;
 
@@ -74,22 +74,16 @@ pub fn swap_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
     Ok(res)
 }
 
-pub fn focus_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let wslist = conn
-        .get_workspaces()
-        .map_err(|_| "Cannot get workspace list!")?;
+pub fn focus_main(tree: &Node) -> Result<Vec<String>, String> {
+    //let node = conn.get_tree().map_err(|_| "get_tree 1")?;
+    let ws = tree
+        .get_current_workspace()
+        .ok_or("No current workspace?!")?;
 
-    Ok(wslist
-        .workspaces
-        .iter()
-        .filter_map(|ws| {
-            if ws.focused {
-                Some(format!("[con_mark={}] focus", mark_name(&ws.name, "main")))
-            } else {
-                None
-            }
-        })
-        .collect())
+    Ok(vec![format!(
+        "[con_mark={}] focus",
+        mark_name(ws.name.as_ref().unwrap(), "main")
+    )])
 }
 
 #[derive(ValueEnum, Clone, Debug, Copy)]
@@ -99,10 +93,10 @@ pub enum LayoutAction {
     Focus,
 }
 
-pub fn run_main(action: LayoutAction, conn: &mut I3Connection) -> Result<Vec<String>, String> {
+pub fn run_main(action: LayoutAction, tree: &Node) -> Result<Vec<String>, String> {
     match action {
-        LayoutAction::Set => make_main(conn),
-        LayoutAction::Swap => swap_main(conn),
-        LayoutAction::Focus => focus_main(conn),
+        LayoutAction::Set => make_main(tree),
+        LayoutAction::Swap => swap_main(tree),
+        LayoutAction::Focus => focus_main(tree),
     }
 }

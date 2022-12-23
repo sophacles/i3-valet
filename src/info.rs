@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::{reply::Node, I3Connection};
+use i3ipc::reply::Node;
 
 use crate::ext::{NodeExt, NodeSearch, Step};
 
@@ -196,12 +196,12 @@ pub enum PrintTarget {
     Window,
 }
 
-pub fn run(target: PrintTarget, conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let node = conn.get_tree().expect("get_tree 1");
+pub fn run(target: PrintTarget, tree: &Node) -> Result<Vec<String>, String> {
+    //let node = conn.get_tree().expect("get_tree 1");
     let (to_print, fmt) = match target {
-        PrintTarget::Tree => (node.get_current_workspace().expect("workspace 2"), &*STD),
-        PrintTarget::Rects => (node.get_current_output().expect("workspace 2"), &*RECT),
-        PrintTarget::Window => (node.get_current_window().expect("workspace 2"), &*WINDOW),
+        PrintTarget::Tree => (tree.get_current_workspace().expect("workspace 2"), &*STD),
+        PrintTarget::Rects => (tree.get_current_output().expect("workspace 2"), &*RECT),
+        PrintTarget::Window => (tree.get_current_window().expect("workspace 2"), &*WINDOW),
     };
 
     pretty_print(to_print, fmt).map(|_| Vec::new())

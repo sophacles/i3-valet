@@ -1,13 +1,14 @@
 use clap::ValueEnum;
-use i3ipc::I3Connection;
+use i3ipc::reply::Workspaces;
 
-pub fn next_free_workspace(conn: &mut I3Connection) -> Result<i32, String> {
-    let ws_reply = conn
-        .get_workspaces()
-        .map_err(|e| format!("Get workspaces: {:?}", e))?;
+pub fn next_free_workspace(workspaces: &mut Workspaces) -> Result<i32, String> {
+    //let ws_reply = conn
+    //    .get_workspaces()
+    //    .map_err(|e| format!("Get workspaces: {:?}", e))?;
 
-    let mut ws_list = ws_reply.workspaces;
-    ws_list.sort_by(|a, b| a.num.partial_cmp(&b.num).unwrap());
+    workspaces
+        .workspaces
+        .sort_by(|a, b| a.num.partial_cmp(&b.num).unwrap());
 
     // go over the workspaces that are present.
     // Workspace 0 doesn't exist, and named workspaces are num = -1
@@ -17,7 +18,7 @@ pub fn next_free_workspace(conn: &mut I3Connection) -> Result<i32, String> {
     // the highest seen ws num. In both cases, adding 1 gets us what we
     // want.
     let mut prev = 0;
-    for ws in ws_list.iter().skip_while(|x| x.num < 1) {
+    for ws in workspaces.workspaces.iter().skip_while(|x| x.num < 1) {
         if ws.num - prev > 1 {
             break;
         }
@@ -32,8 +33,8 @@ pub enum WorkspaceTarget {
     MoveNew,
 }
 
-pub fn run(target: WorkspaceTarget, conn: &mut I3Connection) -> Result<Vec<String>, String> {
-    let ws = next_free_workspace(conn)?;
+pub fn run(target: WorkspaceTarget, workspaces: &mut Workspaces) -> Result<Vec<String>, String> {
+    let ws = next_free_workspace(workspaces)?;
     let cmd = match target {
         WorkspaceTarget::Alloc => format!("workspace {}", ws),
         WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
