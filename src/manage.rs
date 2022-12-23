@@ -1,13 +1,13 @@
 use clap::ValueEnum;
 use i3ipc::{reply::Node, I3Connection};
 
-use crate::ext::{i3_command, NodeSearch};
+use crate::ext::NodeSearch;
 
 fn mark_name(wsname: &str, name: &str) -> String {
     format!("{}_{}", wsname, name)
 }
 
-fn unmark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<String, String> {
+fn unmark(target: Option<&Node>, mark: &str) -> Result<String, String> {
     let cmd = match target {
         Some(n) => format!("[con_id={}] unmark {}", n.id, mark),
         None => format!("unmark {}", mark),
@@ -15,7 +15,7 @@ fn unmark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<
     Ok(cmd)
 }
 
-fn mark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<String, String> {
+fn mark(target: Option<&Node>, mark: &str) -> Result<String, String> {
     let cmd = match target {
         Some(n) => format!("[con_id={}] mark --add {}", n.id, mark),
         None => format!("mark --add {}", mark),
@@ -23,7 +23,7 @@ fn mark(target: Option<&Node>, mark: &str, conn: &mut I3Connection) -> Result<St
     Ok(cmd)
 }
 
-fn swap_mark(mark: &str, conn: &mut I3Connection) -> Result<String, String> {
+fn swap_mark(mark: &str) -> Result<String, String> {
     Ok(format!("swap container with mark {}", mark))
 }
 
@@ -33,7 +33,7 @@ pub fn make_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
         .get_current_workspace()
         .ok_or("No current workspace?!")?;
 
-    mark(None, &mark_name(ws.name.as_ref().unwrap(), "main"), conn).map(|s| vec![s])
+    mark(None, &mark_name(ws.name.as_ref().unwrap(), "main")).map(|s| vec![s])
 }
 
 pub fn swap_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
@@ -53,22 +53,22 @@ pub fn swap_main(conn: &mut I3Connection) -> Result<Vec<String>, String> {
     if cur_window.id == main.id {
         match ws.find_mark(&last_mark) {
             Some(n) => {
-                res.push(swap_mark(&last_mark, conn)?);
-                res.push(unmark(None, &last_mark, conn)?);
-                res.push(unmark(None, &main_mark, conn)?);
-                res.push(mark(Some(n), &main_mark, conn)?);
-                res.push(mark(Some(cur_window), &last_mark, conn)?);
+                res.push(swap_mark(&last_mark)?);
+                res.push(unmark(None, &last_mark)?);
+                res.push(unmark(None, &main_mark)?);
+                res.push(mark(Some(n), &main_mark)?);
+                res.push(mark(Some(cur_window), &last_mark)?);
             }
             None => {
                 return Err("No last window, aborting".to_string());
             }
         }
     } else {
-        res.push(swap_mark(&main_mark, conn)?);
-        res.push(unmark(None, &last_mark, conn)?);
-        res.push(unmark(None, &main_mark, conn)?);
-        res.push(mark(Some(cur_window), &main_mark, conn)?);
-        res.push(mark(Some(main), &last_mark, conn)?);
+        res.push(swap_mark(&main_mark)?);
+        res.push(unmark(None, &last_mark)?);
+        res.push(unmark(None, &main_mark)?);
+        res.push(mark(Some(cur_window), &main_mark)?);
+        res.push(mark(Some(main), &last_mark)?);
     }
 
     Ok(res)
