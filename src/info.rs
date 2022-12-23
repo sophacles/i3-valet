@@ -5,8 +5,29 @@ use crate::ext::{NodeExt, NodeSearch, Step};
 
 use lazy_static::lazy_static;
 
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum PrintTarget {
+    /// print the whole tree
+    Tree,
+    /// print just the dimentions of windows in the tree
+    Rects,
+    /// print info about only the current window
+    Window,
+}
+
+pub fn run(target: PrintTarget, tree: &Node) -> Result<Vec<String>, String> {
+    //let node = conn.get_tree().expect("get_tree 1");
+    let (to_print, fmt) = match target {
+        PrintTarget::Tree => (tree.get_current_workspace().expect("workspace 2"), &*STD),
+        PrintTarget::Rects => (tree.get_current_output().expect("workspace 2"), &*RECT),
+        PrintTarget::Window => (tree.get_current_window().expect("workspace 2"), &*WINDOW),
+    };
+
+    pretty_print(to_print, fmt).map(|_| Vec::new())
+}
+
 lazy_static! {
-    pub static ref STD: StepFormatter = {
+    static ref STD: StepFormatter = {
         let mut fmt = StepFormatter::new();
         fmt.set("id")
             .set("depth")
@@ -16,12 +37,12 @@ lazy_static! {
             .set("move");
         fmt
     };
-    pub static ref RECT: StepFormatter = {
+    static ref RECT: StepFormatter = {
         let mut fmt = StepFormatter::new();
         fmt.set("id").set("depth").set("name").set("rect");
         fmt
     };
-    pub static ref WINDOW: StepFormatter = {
+    static ref WINDOW: StepFormatter = {
         let mut fmt = StepFormatter::new();
         fmt.show_indent(false);
         fmt.set("id")
@@ -34,7 +55,7 @@ lazy_static! {
     };
 }
 
-pub struct StepFormatter {
+struct StepFormatter {
     // shorten id since much of it is redundant
     short_id: bool,
     // if depth is on, indent by depth spaces
@@ -52,7 +73,7 @@ pub struct StepFormatter {
 }
 
 impl StepFormatter {
-    pub fn new() -> Self {
+    fn new() -> Self {
         StepFormatter {
             indent: true,
             short_id: true,
@@ -68,17 +89,17 @@ impl StepFormatter {
         }
     }
 
-    pub fn show_indent(&mut self, v: bool) -> &mut StepFormatter {
+    fn show_indent(&mut self, v: bool) -> &mut StepFormatter {
         self.indent = v;
         self
     }
 
-    pub fn short_id(&mut self, v: bool) -> &mut StepFormatter {
+    fn short_id(&mut self, v: bool) -> &mut StepFormatter {
         self.short_id = v;
         self
     }
 
-    pub fn set(&mut self, what: &str) -> &mut StepFormatter {
+    fn set(&mut self, what: &str) -> &mut StepFormatter {
         match what {
             "depth" => self.depth = true,
             "id" => self.id = true,
@@ -94,7 +115,7 @@ impl StepFormatter {
         self
     }
 
-    pub fn unset(&mut self, what: &str) -> &mut StepFormatter {
+    fn unset(&mut self, what: &str) -> &mut StepFormatter {
         match what {
             "depth" => self.depth = false,
             "id" => self.id = false,
@@ -110,7 +131,7 @@ impl StepFormatter {
         self
     }
 
-    pub fn format(&self, s: &Step) -> String {
+    fn format(&self, s: &Step) -> String {
         let mut out: Vec<String> = vec![];
         if self.depth {
             if self.indent {
@@ -173,7 +194,7 @@ impl Default for StepFormatter {
     }
 }
 
-pub fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
+fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     println!("Tree:");
     for s in n.preorder() {
         println!("{}", fmt.format(&s));
@@ -181,28 +202,11 @@ pub fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     Ok(())
 }
 
-pub fn post_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
+#[allow(dead_code)]
+fn post_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
     println!("Tree:");
     for s in n.postorder() {
         println!("{}", fmt.format(&s));
     }
     Ok(())
-}
-
-#[derive(ValueEnum, Clone, Debug, Copy)]
-pub enum PrintTarget {
-    Tree,
-    Rects,
-    Window,
-}
-
-pub fn run(target: PrintTarget, tree: &Node) -> Result<Vec<String>, String> {
-    //let node = conn.get_tree().expect("get_tree 1");
-    let (to_print, fmt) = match target {
-        PrintTarget::Tree => (tree.get_current_workspace().expect("workspace 2"), &*STD),
-        PrintTarget::Rects => (tree.get_current_output().expect("workspace 2"), &*RECT),
-        PrintTarget::Window => (tree.get_current_window().expect("workspace 2"), &*WINDOW),
-    };
-
-    pretty_print(to_print, fmt).map(|_| Vec::new())
 }

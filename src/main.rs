@@ -17,6 +17,7 @@ pub mod workspace;
 
 #[derive(Subcommand, Debug)]
 enum LayoutCmd {
+    /// Set and focus (etc) a main window and auxilliary windows
     Main { action: manage::LayoutAction },
 }
 
@@ -30,10 +31,10 @@ enum Sub {
         /// Positioning of window.
         how: floats::Positioning,
         /// Anchor point to position window
-        pos: floats::Loc,
+        pos: floats::Pos,
     },
 
-    ///Print window information
+    ///Print information about the current tree or window
     Print {
         /// what to print
         target: info::PrintTarget,
@@ -45,19 +46,21 @@ enum Sub {
         target: workspace::WorkspaceTarget,
     },
 
-    /// Output commands
+    /// Movement between relative outputs.
+    ///
+    /// This assumes outputs are linear and cycles through them in order
     Output {
         change: output::Change,
         dir: output::Direction,
     },
 
-    /// Movement within the layout
+    /// Window layout helpers
     Layout {
         #[command(subcommand)]
         cmd: LayoutCmd,
     },
 
-    /// connect to i3 socket and wait for events
+    /// Connect to i3 and handle keyevents for i3-valet
     Listen,
 }
 
@@ -127,19 +130,20 @@ fn main() {
     env_logger::init();
 
     let app = App::parse();
-    if 
 
-    if let Err(res) = match app.cmd {
+    let cmd_res = match app.cmd {
         Sub::Listen => listener(),
         _ => {
             let mut conn = I3Connection::connect().expect("i3connect");
             app.cmd.dispatch(&mut conn)
         }
-    } {
-        eprintln!("Error running command: {}", res);
+    };
+
+    if let Err(e) = cmd_res {
+        eprintln!("Error running command: {}", e);
         std::process::exit(1);
     }
-    println!("Goodbye?!");
+    println!("Goodbye");
 }
 
 fn parse_command_string(cmd: &str) -> Result<ReceivedCmd, String> {

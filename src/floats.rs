@@ -4,67 +4,37 @@ use i3ipc::reply::Node;
 use crate::ext::NodeSearch;
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
-pub enum Loc {
+pub enum Pos {
+    /// top-left corner
     NW,
+    /// top-right corner
     NE,
+    /// bottom-left corner
     SW,
+    /// bottom-right corner
     SE,
+    /// top-center edge
     Top,
+    /// bottom-center edge
     #[value(name = "bot")]
     Bottom,
+    /// center-left edge
     Left,
+    /// center-right edge
     Right,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Positioning {
-    /// relative to the output
+    /// relative to the output (will overlap bars)
     #[value(name = "abs")]
     Absolute,
-    /// relative to the content area
+    /// relative to the content area (will not overlap bars)
     #[value(name = "rel")]
     Relative,
 }
 
-//            x    y    w    h
-type Rect = (i32, i32, i32, i32);
-
-struct DisplayArea(Rect);
-
-impl DisplayArea {
-    pub fn from_node(node: &Node) -> Self {
-        DisplayArea(node.rect)
-    }
-
-    pub fn display(tree: &Node) -> Option<Self> {
-        Some(DisplayArea::from_node(tree.get_current_output()?))
-    }
-
-    pub fn content(tree: &Node) -> Option<Self> {
-        Some(DisplayArea::from_node(tree.get_content_area()?))
-    }
-
-    pub fn position_window(&self, window: Rect, to: Loc) -> (i32, i32) {
-        let (x, y, w, h) = self.0;
-        let (.., ww, wh) = window;
-        match to {
-            Loc::NW => (x, y),
-            Loc::NE => ((x + w - ww), y),
-            Loc::SW => (x, (y + h - wh)),
-            Loc::SE => ((x + w - ww), (y + h - wh)),
-            Loc::Top => ((x + w / 2 - ww / 2), y),
-            Loc::Bottom => ((x + w / 2 - ww / 2), (y + h - wh)),
-            Loc::Right => ((x + w - ww), (y + h / 2 - wh / 2)),
-            Loc::Left => (x, (y + h / 2 - wh / 2)),
-        }
-    }
-}
-
-fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
-    it.ok_or(format!("Couldn't find in tree: {}", op))
-}
-
-pub fn teleport_float(tree: &Node, to: Loc, pos: Positioning) -> Result<Vec<String>, String> {
+pub fn teleport_float(tree: &Node, to: Pos, pos: Positioning) -> Result<Vec<String>, String> {
     println!("Teleport floating to: {:?}", to);
 
     //let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
@@ -79,4 +49,42 @@ pub fn teleport_float(tree: &Node, to: Loc, pos: Positioning) -> Result<Vec<Stri
 
     let cmd = format!("move position {} {}", x, y);
     Ok(vec![cmd])
+}
+
+//            x    y    w    h
+type Rect = (i32, i32, i32, i32);
+
+struct DisplayArea(Rect);
+
+impl DisplayArea {
+    fn from_node(node: &Node) -> Self {
+        DisplayArea(node.rect)
+    }
+
+    fn display(tree: &Node) -> Option<Self> {
+        Some(DisplayArea::from_node(tree.get_current_output()?))
+    }
+
+    fn content(tree: &Node) -> Option<Self> {
+        Some(DisplayArea::from_node(tree.get_content_area()?))
+    }
+
+    fn position_window(&self, window: Rect, to: Pos) -> (i32, i32) {
+        let (x, y, w, h) = self.0;
+        let (.., ww, wh) = window;
+        match to {
+            Pos::NW => (x, y),
+            Pos::NE => ((x + w - ww), y),
+            Pos::SW => (x, (y + h - wh)),
+            Pos::SE => ((x + w - ww), (y + h - wh)),
+            Pos::Top => ((x + w / 2 - ww / 2), y),
+            Pos::Bottom => ((x + w / 2 - ww / 2), (y + h - wh)),
+            Pos::Right => ((x + w - ww), (y + h / 2 - wh / 2)),
+            Pos::Left => (x, (y + h / 2 - wh / 2)),
+        }
+    }
+}
+
+fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
+    it.ok_or(format!("Couldn't find in tree: {}", op))
 }

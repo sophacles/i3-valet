@@ -1,6 +1,23 @@
 use clap::ValueEnum;
 use i3ipc::reply::Workspaces;
 
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum WorkspaceTarget {
+    /// Create and focus a new workspace
+    Alloc,
+    /// Create a new workspace and move the current focused container to it.
+    MoveNew,
+}
+
+pub fn run(target: WorkspaceTarget, workspaces: &mut Workspaces) -> Result<Vec<String>, String> {
+    let ws = next_free_workspace(workspaces)?;
+    let cmd = match target {
+        WorkspaceTarget::Alloc => format!("workspace {}", ws),
+        WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
+    };
+    Ok(vec![cmd])
+}
+
 pub fn next_free_workspace(workspaces: &mut Workspaces) -> Result<i32, String> {
     //let ws_reply = conn
     //    .get_workspaces()
@@ -25,19 +42,4 @@ pub fn next_free_workspace(workspaces: &mut Workspaces) -> Result<i32, String> {
         prev = ws.num;
     }
     Ok(prev + 1)
-}
-
-#[derive(ValueEnum, Clone, Debug, Copy)]
-pub enum WorkspaceTarget {
-    Alloc,
-    MoveNew,
-}
-
-pub fn run(target: WorkspaceTarget, workspaces: &mut Workspaces) -> Result<Vec<String>, String> {
-    let ws = next_free_workspace(workspaces)?;
-    let cmd = match target {
-        WorkspaceTarget::Alloc => format!("workspace {}", ws),
-        WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
-    };
-    Ok(vec![cmd])
 }
