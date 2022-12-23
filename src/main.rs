@@ -127,6 +127,7 @@ fn main() {
     env_logger::init();
 
     let app = App::parse();
+    if 
 
     if let Err(res) = match app.cmd {
         Sub::Listen => listener(),
@@ -141,29 +142,21 @@ fn main() {
     println!("Goodbye?!");
 }
 
+fn parse_command_string(cmd: &str) -> Result<ReceivedCmd, String> {
+    debug!("parsing command: {}", cmd);
+    let mut args = cmd.split_whitespace();
+    if let Some("nop") = args.next() {
+        return ReceivedCmd::try_parse_from(args)
+            .map_err(|e| format!("Error parsing command: {:?}", e));
+    }
+    Err(format!("Skipping non-valet command: {}", cmd))
+}
+
 fn handle_binding_event(e: BindingEventInfo, conn: &mut I3Connection) -> Result<(), String> {
     debug!("Saw BindingEvent: {:#?}", e);
-    // TODO: this is certainly fragile
-    println!("Caught command: {}", e.binding.command);
     for subcmd in e.binding.command.split(';') {
-        print!("Processing: {} ... ", subcmd);
-        let mut args: Vec<&str> = subcmd.split_whitespace().collect();
-        if args.is_empty() {
-            println!("Skipping!");
-            continue;
-        }
-        match args.remove(0) {
-            "nop" => {
-                println!("Handling!");
-                let app = ReceivedCmd::try_parse_from(args)
-                    .map_err(|e| format!("Error parsing command: {:?}", e))?;
-                app.cmd.dispatch(conn)?
-            }
-            _ => {
-                println!("Skipping!");
-                continue;
-            }
-        }
+        let parsed_cmd = parse_command_string(subcmd)?;
+        parsed_cmd.cmd.dispatch(conn)?;
     }
     Ok(())
 }
@@ -175,14 +168,12 @@ fn listener() -> Result<(), String> {
     listener.subscribe(&subs).unwrap();
 
     for evt in listener.listen() {
-        if let Err(res) = match evt.map_err(|_| "Connection died, i3 is most likey termnating")? {
-            Event::BindingEvent(e) => {
-                let mut command_conn = I3Connection::connect().expect("i3connect");
-                handle_binding_event(e, &mut command_conn)
+        let evt = evt.map_err(|_| "Connection died, i3 is most likey termnating")?;
+        if let Event::BindingEvent(b) = evt {
+            let mut command_conn = I3Connection::connect().expect("i3connect");
+            if let Err(e) = handle_binding_event(b, &mut command_conn) {
+                warn!("Encountered Error in listener: {}", e);
             }
-            _ => unreachable!("{}", "Can't happen, but here we are"),
-        } {
-            warn!("Encountered Error in listener: {}", res);
         }
     }
     Ok(())
