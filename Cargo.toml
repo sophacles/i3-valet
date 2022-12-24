@@ -15,3 +15,7 @@ tokio = "1.23.0"
 #tokio-i3ipc = "0.15.0"
 tokio-i3ipc = { git = "https://github.com/sophacles/tokio-i3ipc.git", branch = "pub_mark_and_barid_vals" }
 tokio-stream = "0.1.11"
+
+[profile.release]
+strip = true
+#lto = true
