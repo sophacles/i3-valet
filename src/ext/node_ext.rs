@@ -1,4 +1,4 @@
-use i3ipc::reply::{Floating, Node};
+use tokio_i3ipc::reply::{Floating, Node};
 
 /// An extenstion trait for i3ipc-rs Nodes with some convenience functions
 pub trait NodeExt {
@@ -11,9 +11,13 @@ pub trait NodeExt {
 
 impl NodeExt for Node {
     fn is_floating(&self) -> bool {
-        match self.floating {
-            Floating::AutoOff | Floating::UserOff => false,
-            Floating::AutoOn | Floating::UserOn => true,
+        if let Some(float_val) = self.floating {
+            match float_val {
+                Floating::AutoOff | Floating::UserOff => false,
+                Floating::AutoOn | Floating::UserOn => true,
+            }
+        } else {
+            false
         }
     }
 

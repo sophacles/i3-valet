@@ -1,7 +1,7 @@
 use std::cmp::{Ord, Ordering};
 
 use super::node_ext::NodeExt;
-use i3ipc::reply::{Node, NodeType};
+use tokio_i3ipc::reply::{Node, NodeType};
 
 /// An extension trait to i3rpc-rs Node that adds searching functionality
 ///
@@ -21,12 +21,12 @@ pub trait NodeSearch {
 
     /// Returns the Node of the currently focused workspace
     fn get_current_workspace(&self) -> Option<&Node> {
-        self.search_focus_path(|n| n.nodetype == NodeType::Workspace)
+        self.search_focus_path(|n| n.node_type == NodeType::Workspace)
     }
 
     /// Returns the Node of the currently focused output
     fn get_current_output(&self) -> Option<&Node> {
-        self.search_focus_path(|n| n.nodetype == NodeType::Output)
+        self.search_focus_path(|n| n.node_type == NodeType::Output)
     }
 
     /// Returns the "content area" of the currently focused output
@@ -43,8 +43,10 @@ pub trait NodeSearch {
     /// Find a node with the provided mark
     fn find_mark(&self, mark: &str) -> Option<&Node> {
         for s in self.preorder() {
-            if s.n.marks.contains(&mark.to_string()) {
-                return Some(s.n);
+            if let Some(ref marks) = s.n.marks {
+                if marks.0.contains(&mark.to_string()) {
+                    return Some(s.n);
+                }
             }
         }
         None

@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::reply::Node;
+use tokio_i3ipc::reply::Node;
 
 use crate::ext::{NodeExt, NodeSearch, Step};
 
@@ -175,7 +175,9 @@ impl StepFormatter {
             out.push(format!("{:?}", s.n.rect));
         }
         if self.marks {
-            out.push(s.n.marks.join(","));
+            if let Some(ref marks) = s.n.marks {
+                out.push(marks.0.join(","));
+            }
         }
         if self.floating {
             out.push(format!("{:.1}", s.n.is_floating()));

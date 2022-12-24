@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::reply::Node;
+use tokio_i3ipc::reply::{Node, Rect};
 
 use crate::ext::NodeSearch;
 
@@ -45,20 +45,17 @@ pub fn teleport_float(tree: &Node, to: Pos, pos: Positioning) -> Result<Vec<Stri
         Positioning::Absolute => okers(DisplayArea::display(tree), "display")?,
     };
 
-    let (x, y) = current_display.position_window(current_window.rect, to);
+    let (x, y) = current_display.position_window(&current_window.rect, to);
 
     let cmd = format!("move position {} {}", x, y);
     Ok(vec![cmd])
 }
 
-//            x    y    w    h
-type Rect = (i32, i32, i32, i32);
-
 struct DisplayArea(Rect);
 
 impl DisplayArea {
     fn from_node(node: &Node) -> Self {
-        DisplayArea(node.rect)
+        DisplayArea(node.rect.clone())
     }
 
     fn display(tree: &Node) -> Option<Self> {
@@ -69,9 +66,9 @@ impl DisplayArea {
         Some(DisplayArea::from_node(tree.get_content_area()?))
     }
 
-    fn position_window(&self, window: Rect, to: Pos) -> (i32, i32) {
-        let (x, y, w, h) = self.0;
-        let (.., ww, wh) = window;
+    fn position_window(&self, window: &Rect, to: Pos) -> (isize, isize) {
+        let (x, y, w, h) = (self.0.x, self.0.y, self.0.width, self.0.height);
+        let (.., ww, wh) = (window.width, window.height);
         match to {
             Pos::NW => (x, y),
             Pos::NE => ((x + w - ww), y),

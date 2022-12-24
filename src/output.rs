@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::reply::{Outputs, Workspaces};
+use tokio_i3ipc::reply::{Outputs, Workspaces};
 
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum Direction {
@@ -33,7 +33,6 @@ fn neighbor(
     //  .map_err(|e| format!("Get workspaces: {:?}", e))?;
 
     let current_ws = workspaces
-        .workspaces
         .iter()
         .find(|ws| ws.focused)
         .ok_or("No focused workspace?")?;
@@ -47,7 +46,6 @@ fn neighbor(
     //    .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
 
     let mut output_list: Vec<String> = outputs
-        .outputs
         .iter()
         .filter(|o| o.active)
         .map(|o| o.name.clone())

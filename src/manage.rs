@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use i3ipc::reply::Node;
+use tokio_i3ipc::reply::Node;
 
 use crate::ext::NodeSearch;
 

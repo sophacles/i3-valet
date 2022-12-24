@@ -2,13 +2,13 @@ extern crate log;
 
 use std::collections::HashSet;
 
-use i3ipc::reply::Node;
+use tokio_i3ipc::reply::Node;
 
 use crate::ext::NodeSearch;
 
-fn find_candidate(root: &Node) -> Vec<(&Node, i64)> {
+fn find_candidate(root: &Node) -> Vec<(&Node, usize)> {
     let mut leaves_seen = HashSet::new();
-    let mut res: Vec<(&Node, i64)> = Vec::with_capacity(2);
+    let mut res: Vec<(&Node, usize)> = Vec::with_capacity(2);
     for s in root.preorder() {
         println!("Walk to: id({})", s.n.id);
         // skip root since it's a workspace and that gets messy
