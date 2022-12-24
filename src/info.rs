@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use tokio_i3ipc::reply::Node;
 
-use crate::ext::{NodeExt, NodeSearch, Step};
+use crate::ext::{NodeExt, NodeSearch, NotFound, Step};
 
 use lazy_static::lazy_static;
 
@@ -15,42 +15,46 @@ pub enum PrintTarget {
     Window,
 }
 
-pub fn run(target: PrintTarget, tree: &Node) {
+pub fn run(target: PrintTarget, tree: &Node) -> Result<(), NotFound> {
     //let node = conn.get_tree().expect("get_tree 1");
     let (to_print, fmt) = match target {
-        PrintTarget::Tree => (tree.get_current_workspace().expect("workspace 2"), &*STD),
-        PrintTarget::Rects => (tree.get_current_output().expect("workspace 2"), &*RECT),
-        PrintTarget::Window => (tree.get_current_window().expect("workspace 2"), &*WINDOW),
+        PrintTarget::Tree => (tree.get_current_workspace()?, &*STD),
+        PrintTarget::Rects => (tree.get_current_output()?, &*RECT),
+        PrintTarget::Window => (tree.get_current_window()?, &*WINDOW),
     };
 
     pretty_print(to_print, fmt);
+    Ok(())
 }
 
 lazy_static! {
     static ref STD: StepFormatter = {
         let mut fmt = StepFormatter::new();
-        fmt.set("id")
-            .set("depth")
-            .set("name")
-            .set("layout")
-            .set("marks")
-            .set("move");
+        fmt.id = true;
+        fmt.depth = true;
+        fmt.name = true;
+        fmt.layout = true;
+        fmt.marks = true;
+        fmt.moveto = true;
         fmt
     };
     static ref RECT: StepFormatter = {
         let mut fmt = StepFormatter::new();
-        fmt.set("id").set("depth").set("name").set("rect");
+        fmt.id = true;
+        fmt.depth = true;
+        fmt.name = true;
+        fmt.rect = true;
         fmt
     };
     static ref WINDOW: StepFormatter = {
         let mut fmt = StepFormatter::new();
         fmt.show_indent(false);
-        fmt.set("id")
-            .set("floating")
-            .set("depth")
-            .set("name")
-            .set("layout")
-            .set("marks");
+        fmt.id = true;
+        fmt.floating = true;
+        fmt.depth = true;
+        fmt.name = true;
+        fmt.layout = true;
+        fmt.marks = true;
         fmt
     };
 }
@@ -94,40 +98,9 @@ impl StepFormatter {
         self
     }
 
+    #[allow(dead_code)]
     fn short_id(&mut self, v: bool) -> &mut StepFormatter {
         self.short_id = v;
-        self
-    }
-
-    fn set(&mut self, what: &str) -> &mut StepFormatter {
-        match what {
-            "depth" => self.depth = true,
-            "id" => self.id = true,
-            "name" => self.name = true,
-            "focus" => self.focus = true,
-            "layout" => self.layout = true,
-            "rect" => self.rect = true,
-            "marks" => self.marks = true,
-            "floating" => self.floating = true,
-            "move" => self.moveto = true,
-            _ => (),
-        }
-        self
-    }
-
-    fn unset(&mut self, what: &str) -> &mut StepFormatter {
-        match what {
-            "depth" => self.depth = false,
-            "id" => self.id = false,
-            "name" => self.name = false,
-            "focus" => self.focus = false,
-            "layout" => self.layout = false,
-            "rect" => self.rect = false,
-            "marks" => self.marks = false,
-            "floating" => self.floating = false,
-            "move" => self.moveto = false,
-            _ => (),
-        }
         self
     }
 

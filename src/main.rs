@@ -1,3 +1,4 @@
+use anyhow::Context;
 use tokio_i3ipc::{
     event::{BindingData, Event, Subscribe},
     I3,
@@ -30,7 +31,7 @@ pub enum LogLevel {
 }
 
 impl LogLevel {
-    fn to_filter(&self) -> log::LevelFilter {
+    fn to_filter(self) -> log::LevelFilter {
         use LogLevel::*;
         match self {
             Debug => LevelFilter::Debug,
@@ -109,66 +110,50 @@ struct ReceivedCmd {
 }
 
 impl Sub {
-    async fn dispatch(&self, conn: &mut I3) -> Result<(), String> {
+    async fn dispatch(&self, conn: &mut I3) -> anyhow::Result<()> {
         info!("Dispatching: {:?}", self);
         let cmds = match self {
             Sub::Fix => {
-                let tree = conn
-                    .get_tree()
-                    .await
-                    .map_err(|e| format!("Get tree: {:?}", e))?;
-                collapse::clean_current_workspace(&tree).map_err(|e| format!("{}", e))
+                let tree = conn.get_tree().await.context("Get tree for Fix")?;
+                collapse::clean_current_workspace(&tree)?
             }
-            Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
+            Sub::Listen => anyhow::bail!("Cannot dispatch listen: cli command only."),
             Sub::Loc { pos, how } => {
-                let tree = conn
-                    .get_tree()
-                    .await
-                    .map_err(|e| format!("Get tree: {:?}", e))?;
-                floats::teleport_float(&tree, *pos, *how).map_err(|e| format!("{}", e))
+                let tree = conn.get_tree().await.context("Get tree for Loc")?;
+                floats::teleport_float(&tree, *pos, *how)?
             }
             Sub::Print { target } => {
-                let tree = conn
-                    .get_tree()
-                    .await
-                    .map_err(|e| format!("Get tree: {:?}", e))?;
-                info::run(*target, &tree);
-                Ok(vec![])
+                let tree = conn.get_tree().await.context("Get tree for Print")?;
+                info::run(*target, &tree).map(|_| vec![])?
             }
             Sub::Workspace { target } => {
                 let mut workspaces = conn
                     .get_workspaces()
                     .await
-                    .map_err(|e| format!("Get workspaces: {:?}", e))?;
-                Ok(workspace::run(*target, &mut workspaces))
+                    .context("Get workspaces for Workspace")?;
+                workspace::run(*target, &mut workspaces)
             }
             Sub::Output { change, dir } => {
                 let workspaces = conn
                     .get_workspaces()
                     .await
-                    .map_err(|e| format!("Get workspaces: {:?}", e))?;
+                    .context("Get workspaces for Ouput")?;
 
-                let outputs = conn
-                    .get_outputs()
-                    .await
-                    .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
-                output::run(*change, *dir, &workspaces, &outputs).map_err(|e| format!("{}", e))
+                let outputs = conn.get_outputs().await.context("Get outputs for Output")?;
+                output::run(*change, *dir, &workspaces, &outputs)?
             }
             Sub::Layout { cmd } => match cmd {
                 LayoutCmd::Main { action } => {
-                    let tree = conn
-                        .get_tree()
-                        .await
-                        .map_err(|e| format!("Get tree: {:?}", e))?;
-                    manage::run_main(*action, &tree).map_err(|e| format!("{}", e))
+                    let tree = conn.get_tree().await.context("Get tree for Layout")?;
+                    manage::run_main(*action, &tree)?
                 }
             },
-        }?;
+        };
 
         for cmd in cmds {
             ext::i3_command(&cmd, conn)
                 .await
-                .map_err(|e| format!("{}", e))?;
+                .context(format!("Running command {}", cmd))?;
         }
         Ok(())
     }
@@ -183,7 +168,7 @@ async fn main() -> Result<(), String> {
         .init();
 
     let cmd_res = match app.cmd {
-        Sub::Listen => listener().await,
+        Sub::Listen => listener().await.map_err(|e| anyhow::anyhow!("stuff")),
         _ => {
             let mut conn = I3::connect().await.expect("i3connect");
             app.cmd.dispatch(&mut conn).await
@@ -212,7 +197,11 @@ async fn handle_binding_event(e: BindingData, mut conn: I3) -> Result<(), String
     debug!("Saw BindingEvent: {:#?}", e);
     for subcmd in e.binding.command.split(';') {
         let parsed_cmd = parse_command_string(subcmd)?;
-        parsed_cmd.cmd.dispatch(&mut conn).await?;
+        parsed_cmd
+            .cmd
+            .dispatch(&mut conn)
+            .await
+            .map_err(|e| format!("dispatch error: {:#}", e))?;
     }
     Ok(())
 }
@@ -222,8 +211,7 @@ async fn listener() -> Result<(), String> {
         .await
         .map_err(|e| format!("couldn't connect: {:?}", e))?;
 
-    let resp = i3
-        .subscribe([Subscribe::Binding])
+    i3.subscribe([Subscribe::Binding])
         .await
         .map_err(|e| format!("couldn't subscribe: {:?}", e))?;
 
