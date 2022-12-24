@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use tokio_i3ipc::reply::{Node, Rect};
 
-use crate::ext::NodeSearch;
+use crate::ext::{NodeSearch, NotFound};
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Pos {
@@ -34,15 +34,15 @@ pub enum Positioning {
     Relative,
 }
 
-pub fn teleport_float(tree: &Node, to: Pos, pos: Positioning) -> Result<Vec<String>, String> {
+pub fn teleport_float(tree: &Node, to: Pos, pos: Positioning) -> Result<Vec<String>, NotFound> {
     log::info!("Teleport floating to: {:?}", to);
 
     //let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
-    let current_window = okers(tree.get_current_window(), "current window")?;
+    let current_window = tree.get_current_window()?;
 
     let current_display = match pos {
-        Positioning::Relative => okers(DisplayArea::content(tree), "content")?,
-        Positioning::Absolute => okers(DisplayArea::display(tree), "display")?,
+        Positioning::Relative => DisplayArea::content(tree)?,
+        Positioning::Absolute => DisplayArea::display(tree)?,
     };
 
     let (x, y) = current_display.position_window(&current_window.rect, to);
@@ -58,12 +58,12 @@ impl DisplayArea {
         DisplayArea(node.rect.clone())
     }
 
-    fn display(tree: &Node) -> Option<Self> {
-        Some(DisplayArea::from_node(tree.get_current_output()?))
+    fn display(tree: &Node) -> Result<Self, NotFound> {
+        Ok(DisplayArea::from_node(tree.get_current_output()?))
     }
 
-    fn content(tree: &Node) -> Option<Self> {
-        Some(DisplayArea::from_node(tree.get_content_area()?))
+    fn content(tree: &Node) -> Result<Self, NotFound> {
+        Ok(DisplayArea::from_node(tree.get_content_area()?))
     }
 
     fn position_window(&self, window: &Rect, to: Pos) -> (isize, isize) {
@@ -80,8 +80,4 @@ impl DisplayArea {
             Pos::Left => (x, (y + h / 2 - wh / 2)),
         }
     }
-}
-
-fn okers<T>(it: Option<T>, op: &str) -> Result<T, String> {
-    it.ok_or(format!("Couldn't find in tree: {}", op))
 }

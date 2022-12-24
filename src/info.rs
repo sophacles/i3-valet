@@ -15,7 +15,7 @@ pub enum PrintTarget {
     Window,
 }
 
-pub fn run(target: PrintTarget, tree: &Node) -> Result<Vec<String>, String> {
+pub fn run(target: PrintTarget, tree: &Node) {
     //let node = conn.get_tree().expect("get_tree 1");
     let (to_print, fmt) = match target {
         PrintTarget::Tree => (tree.get_current_workspace().expect("workspace 2"), &*STD),
@@ -23,7 +23,7 @@ pub fn run(target: PrintTarget, tree: &Node) -> Result<Vec<String>, String> {
         PrintTarget::Window => (tree.get_current_window().expect("workspace 2"), &*WINDOW),
     };
 
-    pretty_print(to_print, fmt).map(|_| Vec::new())
+    pretty_print(to_print, fmt);
 }
 
 lazy_static! {
@@ -196,19 +196,17 @@ impl Default for StepFormatter {
     }
 }
 
-fn pretty_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
+fn pretty_print(n: &Node, fmt: &StepFormatter) {
     println!("Tree:");
     for s in n.preorder() {
         println!("{}", fmt.format(&s));
     }
-    Ok(())
 }
 
 #[allow(dead_code)]
-fn post_print(n: &Node, fmt: &StepFormatter) -> Result<(), String> {
+fn post_print(n: &Node, fmt: &StepFormatter) {
     println!("Tree:");
     for s in n.postorder() {
         println!("{}", fmt.format(&s));
     }
-    Ok(())
 }

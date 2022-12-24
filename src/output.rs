@@ -1,6 +1,8 @@
 use clap::ValueEnum;
 use tokio_i3ipc::reply::{Outputs, Workspaces};
 
+use crate::ext::NotFound;
+
 #[derive(ValueEnum, Clone, Debug, Copy)]
 pub enum Direction {
     Next,
@@ -25,26 +27,18 @@ fn neighbor(
     which: Direction,
     workspaces: &Workspaces,
     outputs: &Outputs,
-) -> Result<String, String> {
+) -> Result<String, NotFound> {
     // find current workspace since that will
     // also tell us the current output
-    //let ws_reply = conn
-    //  .get_workspaces()
-    //  .map_err(|e| format!("Get workspaces: {:?}", e))?;
-
     let current_ws = workspaces
         .iter()
         .find(|ws| ws.focused)
-        .ok_or("No focused workspace?")?;
+        .ok_or(NotFound::Workspace)?;
 
     let current_output = current_ws.output.clone();
 
     // get the list of active output names.
     // active seems to mean "can display things"
-    //let output_list = conn
-    //    .get_outputs()
-    //    .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
-
     let mut output_list: Vec<String> = outputs
         .iter()
         .filter(|o| o.active)
@@ -67,7 +61,7 @@ fn neighbor(
         }
     }
 
-    Err("There's no output to select?".to_owned())
+    Err(NotFound::Output)
 }
 
 pub fn run(
@@ -75,7 +69,7 @@ pub fn run(
     dir: Direction,
     workspaces: &Workspaces,
     outputs: &Outputs,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, NotFound> {
     let target = neighbor(dir, workspaces, outputs)?;
 
     let cmd = match change {

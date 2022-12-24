@@ -1,15 +1,32 @@
 mod node_ext;
 mod node_search;
 
+use thiserror::Error;
 use tokio_i3ipc::I3;
 
 pub use node_ext::NodeExt;
-pub use node_search::{Move, NodeSearch, Step};
+pub use node_search::{Move, NodeSearch, NotFound, Step};
 
-pub async fn i3_command(cmd: &str, conn: &mut I3) -> Result<(), String> {
+#[derive(Error, Debug)]
+#[error("Command: {cmd} got {err}")]
+pub struct CommandError {
+    cmd: String,
+    err: std::io::Error,
+}
+
+impl CommandError {
+    fn new<T: ToString>(cmd: T, err: std::io::Error) -> Self {
+        Self {
+            cmd: cmd.to_string(),
+            err,
+        }
+    }
+}
+
+pub async fn i3_command(cmd: &str, conn: &mut I3) -> Result<(), CommandError> {
     log::debug!("Sending i3 command: {}", cmd);
     conn.run_command(cmd)
         .await
         .map(|_| ())
-        .map_err(|e| format!("Command: {} got: {:?}", cmd, e))
+        .map_err(|e| CommandError::new(cmd, e))
 }

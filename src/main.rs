@@ -1,5 +1,3 @@
-use std::io;
-
 use tokio_i3ipc::{
     event::{BindingData, Event, Subscribe},
     I3,
@@ -119,7 +117,7 @@ impl Sub {
                     .get_tree()
                     .await
                     .map_err(|e| format!("Get tree: {:?}", e))?;
-                collapse::clean_current_workspace(&tree)
+                collapse::clean_current_workspace(&tree).map_err(|e| format!("{}", e))
             }
             Sub::Listen => Err("Cannot dispatch listen: cli command only.".to_string()),
             Sub::Loc { pos, how } => {
@@ -127,21 +125,22 @@ impl Sub {
                     .get_tree()
                     .await
                     .map_err(|e| format!("Get tree: {:?}", e))?;
-                floats::teleport_float(&tree, *pos, *how)
+                floats::teleport_float(&tree, *pos, *how).map_err(|e| format!("{}", e))
             }
             Sub::Print { target } => {
                 let tree = conn
                     .get_tree()
                     .await
                     .map_err(|e| format!("Get tree: {:?}", e))?;
-                info::run(*target, &tree)
+                info::run(*target, &tree);
+                Ok(vec![])
             }
             Sub::Workspace { target } => {
                 let mut workspaces = conn
                     .get_workspaces()
                     .await
                     .map_err(|e| format!("Get workspaces: {:?}", e))?;
-                workspace::run(*target, &mut workspaces)
+                Ok(workspace::run(*target, &mut workspaces))
             }
             Sub::Output { change, dir } => {
                 let workspaces = conn
@@ -153,7 +152,7 @@ impl Sub {
                     .get_outputs()
                     .await
                     .map_err(|e| format!("Cannot get outputs: {:?}", e))?;
-                output::run(*change, *dir, &workspaces, &outputs)
+                output::run(*change, *dir, &workspaces, &outputs).map_err(|e| format!("{}", e))
             }
             Sub::Layout { cmd } => match cmd {
                 LayoutCmd::Main { action } => {
@@ -161,13 +160,15 @@ impl Sub {
                         .get_tree()
                         .await
                         .map_err(|e| format!("Get tree: {:?}", e))?;
-                    manage::run_main(*action, &tree)
+                    manage::run_main(*action, &tree).map_err(|e| format!("{}", e))
                 }
             },
         }?;
 
         for cmd in cmds {
-            ext::i3_command(&cmd, conn).await?;
+            ext::i3_command(&cmd, conn)
+                .await
+                .map_err(|e| format!("{}", e))?;
         }
         Ok(())
     }

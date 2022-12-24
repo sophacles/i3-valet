@@ -1,7 +1,23 @@
 use std::cmp::{Ord, Ordering};
 
-use super::node_ext::NodeExt;
+use thiserror::Error;
 use tokio_i3ipc::reply::{Node, NodeType};
+
+use super::node_ext::NodeExt;
+
+#[derive(Error, Debug)]
+pub enum NotFound {
+    #[error("Could not find a focused content area")]
+    ContentArea,
+    #[error("Could not find a focused workspace")]
+    Workspace,
+    #[error("Could not find a focused output")]
+    Output,
+    #[error("Could not find a focused window")]
+    CurrentWindow,
+    #[error("Could not find a focused container with mark '{0}'")]
+    Mark(String),
+}
 
 /// An extension trait to i3rpc-rs Node that adds searching functionality
 ///
@@ -20,36 +36,40 @@ pub trait NodeSearch {
     fn search_focus_path<P: Fn(&Node) -> bool>(&self, p: P) -> Option<&Node>;
 
     /// Returns the Node of the currently focused workspace
-    fn get_current_workspace(&self) -> Option<&Node> {
+    fn get_current_workspace(&self) -> Result<&Node, NotFound> {
         self.search_focus_path(|n| n.node_type == NodeType::Workspace)
+            .ok_or(NotFound::Workspace)
     }
 
     /// Returns the Node of the currently focused output
-    fn get_current_output(&self) -> Option<&Node> {
+    fn get_current_output(&self) -> Result<&Node, NotFound> {
         self.search_focus_path(|n| n.node_type == NodeType::Output)
+            .ok_or(NotFound::Output)
     }
 
     /// Returns the "content area" of the currently focused output
     /// (the content area has the rectangle that windows will be in basically: output - bars)
-    fn get_content_area(&self) -> Option<&Node> {
+    fn get_content_area(&self) -> Result<&Node, NotFound> {
         self.search_focus_path(|n| n.name.as_ref().map_or(false, |v| v == "content"))
+            .ok_or(NotFound::ContentArea)
     }
 
     /// Returns the node of the currently focused window
-    fn get_current_window(&self) -> Option<&Node> {
+    fn get_current_window(&self) -> Result<&Node, NotFound> {
         self.search_focus_path(|n| n.focused)
+            .ok_or(NotFound::CurrentWindow)
     }
 
     /// Find a node with the provided mark
-    fn find_mark(&self, mark: &str) -> Option<&Node> {
+    fn find_mark(&self, mark: &str) -> Result<&Node, NotFound> {
         for s in self.preorder() {
             if let Some(ref marks) = s.n.marks {
                 if marks.0.contains(&mark.to_string()) {
-                    return Some(s.n);
+                    return Ok(s.n);
                 }
             }
         }
-        None
+        Err(NotFound::Mark(mark.to_string()))
     }
 }
 
@@ -87,8 +107,8 @@ pub enum Move {
 }
 
 impl Move {
-    fn new(cur: &usize, last: &usize) -> Move {
-        match cur.cmp(last) {
+    fn new(cur: usize, last: usize) -> Move {
+        match cur.cmp(&last) {
             Ordering::Greater => Move::Down,
             Ordering::Equal => Move::Sibling,
             Ordering::Less => Move::Up,
@@ -207,7 +227,7 @@ impl<'a> Iterator for PreOrder<'a> {
             self.stack.push((new_d, n));
         }
 
-        let m = Move::new(&d, &self.last_d);
+        let m = Move::new(d, self.last_d);
         self.last_d = d;
         Some(Step { d, m, n: container })
     }

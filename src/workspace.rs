@@ -9,20 +9,16 @@ pub enum WorkspaceTarget {
     MoveNew,
 }
 
-pub fn run(target: WorkspaceTarget, workspaces: &mut Workspaces) -> Result<Vec<String>, String> {
-    let ws = next_free_workspace(workspaces)?;
+pub fn run(target: WorkspaceTarget, workspaces: &mut Workspaces) -> Vec<String> {
+    let ws = next_free_workspace(workspaces);
     let cmd = match target {
         WorkspaceTarget::Alloc => format!("workspace {}", ws),
         WorkspaceTarget::MoveNew => format!("move container to workspace {}; workspace {}", ws, ws),
     };
-    Ok(vec![cmd])
+    vec![cmd]
 }
 
-pub fn next_free_workspace(workspaces: &mut Workspaces) -> Result<i32, String> {
-    //let ws_reply = conn
-    //    .get_workspaces()
-    //    .map_err(|e| format!("Get workspaces: {:?}", e))?;
-
+pub fn next_free_workspace(workspaces: &mut Workspaces) -> i32 {
     workspaces.sort_by(|a, b| a.num.partial_cmp(&b.num).unwrap());
 
     // go over the workspaces that are present.
@@ -39,5 +35,5 @@ pub fn next_free_workspace(workspaces: &mut Workspaces) -> Result<i32, String> {
         }
         prev = ws.num;
     }
-    Ok(prev + 1)
+    prev + 1
 }

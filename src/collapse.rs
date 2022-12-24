@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use tokio_i3ipc::reply::Node;
 
-use crate::ext::NodeSearch;
+use crate::ext::{NodeSearch, NotFound};
 
 fn find_candidate(root: &Node) -> Vec<(&Node, usize)> {
     let mut leaves_seen = HashSet::new();
@@ -34,12 +34,9 @@ fn find_candidate(root: &Node) -> Vec<(&Node, usize)> {
     res
 }
 
-pub fn clean_current_workspace(tree: &Node) -> Result<Vec<String>, String> {
-    //crate::info::print_ws(conn, &info::STD);
-    //let node = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
-    let ws = tree
-        .get_current_workspace()
-        .expect("No current workspace!?");
+pub fn clean_current_workspace(tree: &Node) -> Result<Vec<String>, NotFound> {
+    let ws = tree.get_current_workspace()?;
+
     let mut res = Vec::new();
     for (candidate, to) in find_candidate(ws) {
         let cmd = format!(

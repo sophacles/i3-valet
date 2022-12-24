@@ -11,6 +11,7 @@ env_logger = "0.6.1"
 #i3ipc = { version = "0.10.1", features = ["i3-next"] }
 #i3ipc = { path = "/home/sophacles/src/i3ipc-rs", features = ["i3-next"] }
 lazy_static = "1.4.0"
+thiserror = "1.0.38"
 tokio = "1.23.0"
 #tokio-i3ipc = "0.15.0"
 tokio-i3ipc = { git = "https://github.com/sophacles/tokio-i3ipc.git", branch = "pub_mark_and_barid_vals" }
