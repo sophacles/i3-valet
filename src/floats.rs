@@ -35,7 +35,7 @@ pub enum Positioning {
 }
 
 pub fn teleport_float(tree: &Node, to: Pos, pos: Positioning) -> Result<Vec<String>, String> {
-    println!("Teleport floating to: {:?}", to);
+    log::info!("Teleport floating to: {:?}", to);
 
     //let tree = conn.get_tree().map_err(|e| format!("Get tree: {:?}", e))?;
     let current_window = okers(tree.get_current_window(), "current window")?;

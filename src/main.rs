@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 
 use log::*;
 //use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 //use i3ipc::{
 //    event::{BindingEventInfo, Event},
 //    I3Connection, I3EventListener, Subscription,
@@ -21,6 +21,28 @@ pub mod info;
 pub mod manage;
 pub mod output;
 pub mod workspace;
+
+#[derive(ValueEnum, Debug, Clone, Copy)]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Off,
+}
+
+impl LogLevel {
+    fn to_filter(&self) -> log::LevelFilter {
+        use LogLevel::*;
+        match self {
+            Debug => LevelFilter::Debug,
+            Info => LevelFilter::Info,
+            Warn => LevelFilter::Warn,
+            Error => LevelFilter::Error,
+            Off => LevelFilter::Off,
+        }
+    }
+}
 
 #[derive(Subcommand, Debug)]
 enum LayoutCmd {
@@ -74,6 +96,9 @@ enum Sub {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct App {
+    /// log level
+    #[arg(long, default_value = "off")]
+    log: LogLevel,
     #[command(subcommand)]
     cmd: Sub,
 }
@@ -87,7 +112,7 @@ struct ReceivedCmd {
 
 impl Sub {
     async fn dispatch(&self, conn: &mut I3) -> Result<(), String> {
-        println!("Dispatching: {:?}", self);
+        info!("Dispatching: {:?}", self);
         let cmds = match self {
             Sub::Fix => {
                 let tree = conn
@@ -150,9 +175,11 @@ impl Sub {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), String> {
-    env_logger::init();
-
     let app = App::parse();
+
+    env_logger::builder()
+        .filter_level(app.log.to_filter())
+        .init();
 
     let cmd_res = match app.cmd {
         Sub::Listen => listener().await,
@@ -163,10 +190,10 @@ async fn main() -> Result<(), String> {
     };
 
     if let Err(e) = cmd_res {
-        eprintln!("Error running command: {}", e);
+        warn!("Error running command: {}", e);
         std::process::exit(1);
     }
-    println!("Goodbye");
+    warn!("Exitinging i3");
     Ok(())
 }
 
@@ -193,16 +220,12 @@ async fn listener() -> Result<(), String> {
     let mut i3 = I3::connect()
         .await
         .map_err(|e| format!("couldn't connect: {:?}", e))?;
-    // this type can be inferred, here is written explicitly:
-    //let worksp: reply::Workspaces = i3.get_workspaces().await?;
-    //println!("{:#?}", worksp);
 
     let resp = i3
         .subscribe([Subscribe::Binding])
         .await
         .map_err(|e| format!("couldn't subscribe: {:?}", e))?;
 
-    println!("{:#?}", resp);
     let mut listener = i3.listen();
     while let Some(event) = listener.next().await {
         let evt = event.map_err(|_| "Connection died, i3 is most likey termnating")?;
@@ -218,7 +241,7 @@ async fn listener() -> Result<(), String> {
                 });
             }
             Event::Shutdown(ev) => {
-                println!("shutdown event {:?}", ev);
+                log::warn!("shutdown event {:?}", ev);
                 break;
             }
             _ => (),
