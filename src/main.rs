@@ -5,13 +5,8 @@ use tokio_i3ipc::{
 };
 use tokio_stream::StreamExt;
 
-use log::*;
-//use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use clap::{Parser, Subcommand, ValueEnum};
-//use i3ipc::{
-//    event::{BindingEventInfo, Event},
-//    I3Connection, I3EventListener, Subscription,
-//};
+use log::*;
 
 pub mod collapse;
 pub mod ext;
@@ -198,7 +193,7 @@ fn parse_command_string(action: &str) -> anyhow::Result<Option<ReceivedCmd>> {
     debug!("parsing command: {}", action);
     let mut args = action.split_whitespace();
     Ok(if let Some("nop") = args.next() {
-        ReceivedCmd::try_parse_from(args).map(|cmd| Some(cmd))?
+        ReceivedCmd::try_parse_from(args).map(Some)?
     } else {
         None
     })
@@ -243,7 +238,7 @@ async fn listener() -> anyhow::Result<()> {
     while let Some(event) = listener.next().await {
         let evt = event.context("Connection died, i3 is most likey termnating")?;
         if let Event::Binding(ev) = evt {
-            tokio::spawn(async { handle_binding_event(ev) });
+            tokio::spawn(async { handle_binding_event(ev).await });
         }
     }
     Ok(())
