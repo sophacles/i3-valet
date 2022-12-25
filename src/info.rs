@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use clap::ValueEnum;
 use tokio_i3ipc::reply::Node;
 
@@ -105,61 +107,51 @@ impl StepFormatter {
     }
 
     fn format(&self, s: &Step) -> String {
-        let mut out: Vec<String> = vec![];
+        let mut out = String::with_capacity(128);
         if self.depth {
-            if self.indent {
-                out.push(format!("{}{}", "  ".repeat(s.d), s.d));
-            } else {
-                out.push(format!("{}", s.d));
+            for _ in 0..s.d {
+                out.push(' ');
             }
+            write!(out, "{}", s.d).unwrap();
         }
 
         if self.name {
-            out.push(
-                s.n.name
-                    .as_ref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| String::from("None")),
-            );
+            out.push_str(s.n.name.as_deref().unwrap_or("None"));
         }
 
         if self.id {
             if self.short_id {
                 let s = format!("{}", s.n.id);
                 let last = &s[s.len() - 5..];
-                out.push(last.to_string());
+                out.push_str(last);
             } else {
-                out.push(s.n.id.to_string());
+                write!(out, "{}", s.n.id).unwrap();
             }
         }
         if self.focus {
-            out.push(
-                match s.n.focused {
-                    true => "F",
-                    false => "U",
-                }
-                .to_string(),
-            );
+            match s.n.focused {
+                true => out.push('F'),
+                false => out.push('U'),
+            };
         }
         if self.layout {
-            out.push(format!("{:?}", s.n.layout));
+            write!(out, "{:?}", s.n.layout).unwrap();
         }
         if self.rect {
-            out.push(format!("{:?}", s.n.rect));
+            write!(out, "{:?}", s.n.rect).unwrap();
         }
         if self.marks {
             if let Some(ref marks) = s.n.marks {
-                out.push(marks.0.join(","));
+                out.push_str(marks.0.join(",").as_ref());
             }
         }
         if self.floating {
-            out.push(format!("{:.1}", s.n.is_floating()));
+            write!(out, "{:.1}", s.n.is_floating()).unwrap();
         }
         if self.moveto {
-            out.push(format!("{:?}", s.m));
+            write!(out, "{:?}", s.m).unwrap();
         }
-
-        out.join(" ")
+        out
     }
 }
 
