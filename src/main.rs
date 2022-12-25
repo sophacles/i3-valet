@@ -50,7 +50,7 @@ enum LayoutCmd {
 }
 
 #[derive(Subcommand, Debug)]
-enum Sub {
+enum Action {
     /// clean up the window tree
     Fix,
 
@@ -87,9 +87,15 @@ enum Sub {
         #[command(subcommand)]
         cmd: LayoutCmd,
     },
+}
 
-    /// Connect to i3 and handle keyevents for i3-valet
+#[derive(Subcommand, Debug)]
+enum RunType {
+    /// process keybinding events for i3-valet actions to take
     Listen,
+    /// run a specific action.
+    #[command(subcommand)]
+    Run(Action),
 }
 
 #[derive(Parser, Debug)]
@@ -99,41 +105,40 @@ struct App {
     #[arg(long, default_value = "off")]
     log: LogLevel,
     #[command(subcommand)]
-    cmd: Sub,
+    how: RunType,
 }
 
 #[derive(Parser, Debug)]
 #[command(no_binary_name(true), author, version, about, long_about = None)]
 struct ReceivedCmd {
     #[command(subcommand)]
-    cmd: Sub,
+    action: Action,
 }
 
-impl Sub {
+impl Action {
     async fn dispatch(&self, conn: &mut I3) -> anyhow::Result<()> {
         info!("Dispatching: {:?}", self);
         let cmds = match self {
-            Sub::Fix => {
+            Action::Fix => {
                 let tree = conn.get_tree().await.context("Get tree for Fix")?;
                 collapse::clean_current_workspace(&tree)?
             }
-            Sub::Listen => anyhow::bail!("Cannot dispatch listen: cli command only."),
-            Sub::Loc { pos, how } => {
+            Action::Loc { pos, how } => {
                 let tree = conn.get_tree().await.context("Get tree for Loc")?;
                 floats::teleport_float(&tree, *pos, *how)?
             }
-            Sub::Print { target } => {
+            Action::Print { target } => {
                 let tree = conn.get_tree().await.context("Get tree for Print")?;
                 info::run(*target, &tree).map(|_| vec![])?
             }
-            Sub::Workspace { target } => {
+            Action::Workspace { target } => {
                 let mut workspaces = conn
                     .get_workspaces()
                     .await
                     .context("Get workspaces for Workspace")?;
                 workspace::run(*target, &mut workspaces)
             }
-            Sub::Output { change, dir } => {
+            Action::Output { change, dir } => {
                 let workspaces = conn
                     .get_workspaces()
                     .await
@@ -142,7 +147,7 @@ impl Sub {
                 let outputs = conn.get_outputs().await.context("Get outputs for Output")?;
                 output::run(*change, *dir, &workspaces, &outputs)?
             }
-            Sub::Layout { cmd } => match cmd {
+            Action::Layout { cmd } => match cmd {
                 LayoutCmd::Main { action } => {
                     let tree = conn.get_tree().await.context("Get tree for Layout")?;
                     manage::run_main(*action, &tree)?
@@ -167,73 +172,78 @@ async fn main() -> Result<(), String> {
         .filter_level(app.log.to_filter())
         .init();
 
-    let cmd_res = match app.cmd {
-        Sub::Listen => listener().await.map_err(|e| anyhow::anyhow!("stuff")),
-        _ => {
+    info!("Welcome to i3-valet");
+
+    match app.how {
+        RunType::Listen => {
+            if let Err(e) = listener().await {
+                error!("Fatal error running command: {}", e);
+                std::process::exit(1);
+            }
+        }
+        RunType::Run(a) => {
             let mut conn = I3::connect().await.expect("i3connect");
-            app.cmd.dispatch(&mut conn).await
+            if let Err(e) = a.dispatch(&mut conn).await {
+                eprintln!("Fatal error running command: {:#}", e);
+                std::process::exit(1);
+            }
         }
     };
 
-    if let Err(e) = cmd_res {
-        warn!("Error running command: {}", e);
-        std::process::exit(1);
-    }
-    warn!("Exitinging i3");
+    info!("Exitinging i3-valet");
     Ok(())
 }
 
-fn parse_command_string(cmd: &str) -> Result<ReceivedCmd, String> {
-    debug!("parsing command: {}", cmd);
-    let mut args = cmd.split_whitespace();
-    if let Some("nop") = args.next() {
-        return ReceivedCmd::try_parse_from(args)
-            .map_err(|e| format!("Error parsing command: {:?}", e));
-    }
-    Err(format!("Skipping non-valet command: {}", cmd))
+fn parse_command_string(action: &str) -> anyhow::Result<Option<ReceivedCmd>> {
+    debug!("parsing command: {}", action);
+    let mut args = action.split_whitespace();
+    Ok(if let Some("nop") = args.next() {
+        ReceivedCmd::try_parse_from(args).map(|cmd| Some(cmd))?
+    } else {
+        None
+    })
 }
 
-async fn handle_binding_event(e: BindingData, mut conn: I3) -> Result<(), String> {
-    debug!("Saw BindingEvent: {:#?}", e);
+async fn handle_binding_event(e: BindingData) {
+    let mut conn = match I3::connect().await {
+        Ok(conn) => conn,
+        Err(e) => {
+            log::error!("couldn't connect while handling binding: {}", e);
+            return;
+        }
+    };
+
     for subcmd in e.binding.command.split(';') {
-        let parsed_cmd = parse_command_string(subcmd)?;
-        parsed_cmd
-            .cmd
-            .dispatch(&mut conn)
-            .await
-            .map_err(|e| format!("dispatch error: {:#}", e))?;
+        match parse_command_string(subcmd) {
+            Ok(Some(cmd)) => {
+                if let Err(e) = cmd.action.dispatch(&mut conn).await {
+                    warn!("Error running action '{}': {:#}", subcmd, e);
+                }
+            }
+            Ok(None) => {
+                debug!("Skipping non-i3-valet action: {}", subcmd);
+            }
+
+            Err(e) => {
+                warn!("Error parsing action '{}': {:#}", subcmd, e);
+            }
+        };
+        debug!("Action completed: {}", subcmd);
     }
-    Ok(())
 }
 
-async fn listener() -> Result<(), String> {
-    let mut i3 = I3::connect()
-        .await
-        .map_err(|e| format!("couldn't connect: {:?}", e))?;
+async fn listener() -> anyhow::Result<()> {
+    let mut i3 = I3::connect().await.context("init listener")?;
 
     i3.subscribe([Subscribe::Binding])
         .await
-        .map_err(|e| format!("couldn't subscribe: {:?}", e))?;
+        .context("couldn't subscribe")?;
 
     let mut listener = i3.listen();
     while let Some(event) = listener.next().await {
-        let evt = event.map_err(|_| "Connection died, i3 is most likey termnating")?;
-        match evt {
-            Event::Binding(ev) => {
-                let i3 = I3::connect()
-                    .await
-                    .map_err(|e| format!("couldn't connect: {:?}", e))?;
-                tokio::spawn(async {
-                    if let Err(e) = handle_binding_event(ev, i3).await {
-                        warn!("Encountered Error in listener: {}", e);
-                    }
-                });
-            }
-            Event::Shutdown(ev) => {
-                log::warn!("shutdown event {:?}", ev);
-                break;
-            }
-            _ => (),
+        let evt = event.context("Connection died, i3 is most likey termnating")?;
+        if let Event::Binding(ev) = evt {
+            tokio::spawn(async { handle_binding_event(ev) });
         }
     }
     Ok(())
