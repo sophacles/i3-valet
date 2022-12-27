@@ -106,6 +106,9 @@ bindsym $mod+t nop foo bar
 ```
 will report `nop foo bar` as the command when `$mod+t` is pressed.
 
+i3-valet just strips the `nop` from the command and parses it like it would
+from the command line.
+
 
 ## Examples
 TODO: Figure out how to record sessions highlighting various actions
