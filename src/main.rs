@@ -18,6 +18,7 @@ pub mod workspace;
 
 #[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum LogLevel {
+    Trace,
     Debug,
     Info,
     Warn,
@@ -29,6 +30,7 @@ impl LogLevel {
     fn to_filter(self) -> log::LevelFilter {
         use LogLevel::*;
         match self {
+            Trace => LevelFilter::Trace,
             Debug => LevelFilter::Debug,
             Info => LevelFilter::Info,
             Warn => LevelFilter::Warn,
@@ -200,17 +202,17 @@ fn parse_command_string(action: &str) -> anyhow::Result<Option<ReceivedCmd>> {
 }
 
 async fn handle_binding_event(e: BindingData) {
-    let mut conn = match I3::connect().await {
-        Ok(conn) => conn,
-        Err(e) => {
-            log::error!("couldn't connect while handling binding: {}", e);
-            return;
-        }
-    };
-
+    trace!("Binding event: {:?}", e);
     for subcmd in e.binding.command.split(';') {
         match parse_command_string(subcmd) {
             Ok(Some(cmd)) => {
+                let mut conn = match I3::connect().await {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        log::error!("couldn't connect while handling binding: {}", e);
+                        return;
+                    }
+                };
                 if let Err(e) = cmd.action.dispatch(&mut conn).await {
                     warn!("Error running action '{}': {:#}", subcmd, e);
                 }
