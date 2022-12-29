@@ -110,8 +110,103 @@ i3-valet just strips the `nop` from the command and parses it like it would
 from the command line.
 
 
-## Examples
-TODO: Figure out how to record sessions highlighting various actions
+## Actions
+
+### Loc
+Move  floating windows to anchor points on the screen.
+
+The first argument, `abs` or `rel` describes how the anchor coordiantes are calculated.
+
+* `abs` is relative to the display, and will cover the bar with the floating window.
+* `rel` is relative to the content area of the display, "inside" the bars.
+
+This i3config is used in the demo below.
+```
+mode "move" {
+    # Move floating containers
+    bindsym $mod+u     nop loc rel nw
+    bindsym $mod+i     nop loc rel top
+    bindsym $mod+o     nop loc rel ne
+    bindsym $mod+l     nop loc rel right
+    bindsym $mod+n     nop loc rel sw
+    bindsym $mod+m     nop loc rel bot
+    bindsym $mod+j     nop loc rel left
+    bindsym $mod+comma nop loc rel se
+    bindsym $mod+k     move position center
+
+    bindsym space  mode "default"
+}
+
+bindsym $mod+m mode "move"
+
+exec_always --no-startup-id i3-valet listen 
+```
+
+<img src="./assets/loc.gif" alt="Demo of loc rel action">
+
+Replacing the `loc` with `abs` in the action, e.g.:
+
+```
+    bindsym $mod+u     nop loc abs nw
+```
+
+will move the floating window over the bar.
+
+<img src="./assets/loc_abs.gif" alt="Demo of loc abs action">
+
+### Layout
+
+Actions that help build or maintain a window layout and movement within that.
+
+**Main** Actions pertaining to a "main" window position in a layout.
+
+* `layout main set` designates the currently focusted window as being in the "main" position. 
+* `layout main focus` focuses the window in the main position
+* `layout main swap` swap the current window with the window in the main
+  position. If the currently focused window is in the main position, it will be
+  swapped with the most recently focused window in the workspace.
+
+
+In the demo below, this is the relevant i3 config:
+```
+bindsym $mod+Shift+i nop layout main set
+bindsym $mod+i nop layout main focus
+bindsym $mod+Tab nop layout main swap
+```
+
+<img src="./assets/layout_main.gif" alt="Demo of layout main actions">
+
+### Output
+
+i3 output targets are based on the output name. When one wants to share a
+single config amongst several machines, or uses a laptop that may be connected
+to several outputs in a day (particularly using various connector types) it can
+be difficult to set up keybindings consistently. The `i3-valet` output actions
+solve this by examining the currently connected outputs and treating them
+linearly.
+
+The commands all take an argument, either `next` or `prev` as a target output
+(on a 2 display setup, these are the same). The available actions are:
+
+* `focus TARGET` - focus the target output
+* `move-win TARGET` - move the currently focused window to the target output
+* `move-ws TARGET` - move the current workspace to the target output
+
+### Workspace
+
+Focus the next empty workspace. i3 expects an explicit workspace name (or
+number) in commands. Sometimes that isn't desired, but rather "any empty"
+workspace is desired. The `workspace` actions will find the lowest number
+workspace that currently contains no windows, and focus or move a container to that workspace.
+
+For example, if worspaces 1 and 2 have windows, the action `workspace alloc`
+will focus workspace 3. If 1, 3, and 4 have windows, then the same command will
+focus workspace 2.
+
+The available actions are:
+
+* `alloc` - focus the next available workspace
+* `move-new` - move the currently focused container to the next available workspace
 
 ## Contributing
 
