@@ -91,8 +91,16 @@ enum RunType {
     /// process keybinding events for i3-valet actions to take
     Listen,
     /// run a specific action.
-    #[command(subcommand)]
-    Run(Action),
+    Run {
+        /// dry-run will just print the i3 commands to stdout rather than send them to i3 over the
+        /// socket
+        #[arg(long)]
+        dry_run: bool,
+
+        /// The action to run
+        #[command(subcommand)]
+        action: Action,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -113,7 +121,7 @@ struct ReceivedCmd {
 }
 
 impl Action {
-    async fn dispatch(&self, conn: &mut I3) -> anyhow::Result<()> {
+    async fn dispatch(&self, conn: &mut I3) -> anyhow::Result<Vec<String>> {
         info!("Dispatching: {:?}", self);
         let cmds = match self {
             Action::Fix => {
@@ -151,14 +159,9 @@ impl Action {
                 }
             },
         };
+        Ok(cmds)
 
-        for cmd in cmds {
-            ext::i3_command(&cmd, conn)
-                .await
-                .context(format!("Running command {}", cmd))?;
-        }
-        Ok(())
-    }
+   }
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -178,11 +181,24 @@ async fn main() -> Result<(), String> {
                 std::process::exit(1);
             }
         }
-        RunType::Run(a) => {
+        RunType::Run{dry_run, action} => {
             let mut conn = I3::connect().await.expect("i3connect");
-            if let Err(e) = a.dispatch(&mut conn).await {
-                eprintln!("Fatal error running command: {:#}", e);
-                std::process::exit(1);
+            match action.dispatch(&mut conn).await {
+                Ok(cmds)=> {
+                    if dry_run{
+                        for cmd in cmds {
+                            println!("{}", cmd);
+                        }
+                    } else {
+                        if let Err(e) = ext::i3_command(cmds, &mut conn).await{
+                            eprintln!("Fatal error dispatching command: {:#}", e);
+                        }
+                    }
+                },
+                Err(e) =>{
+                    eprintln!("Fatal error running command: {:#}", e);
+                    std::process::exit(1);
+                }
             }
         }
     };
@@ -213,9 +229,12 @@ async fn handle_binding_event(e: BindingData) {
                         return;
                     }
                 };
-                if let Err(e) = cmd.action.dispatch(&mut conn).await {
-                    warn!("Error running action '{}': {:#}", subcmd, e);
-                }
+                match cmd.action.dispatch(&mut conn).await {
+                    Ok(cmds) => if let Err(e)=ext::i3_command(cmds, &mut conn).await{
+                        warn!("Error running action '{}': {:#}", subcmd, e);
+                    },
+                    Err(e) => warn!("Error dispatching action '{}': {:#}", subcmd, e),
+                };
             }
             Ok(None) => {
                 debug!("Skipping non-i3-valet action: {}", subcmd);

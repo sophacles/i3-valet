@@ -23,10 +23,13 @@ impl CommandError {
     }
 }
 
-pub async fn i3_command(cmd: &str, conn: &mut I3) -> Result<(), CommandError> {
-    log::debug!("Sending i3 command: {}", cmd);
-    conn.run_command(cmd)
-        .await
-        .map(|_| ())
-        .map_err(|e| CommandError::new(cmd, e))
+pub async fn i3_command(commands: Vec<String>, conn: &mut I3) -> Result<(), CommandError> {
+    for cmd in commands{
+        log::debug!("Sending i3 command: {}", cmd);
+        conn.run_command(cmd.as_str())
+            .await
+            .map(|_| ())
+            .map_err(|e| CommandError::new(cmd, e))?
+    }
+    Ok(())
 }
